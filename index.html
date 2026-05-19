@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>國語找字遊戲 v4.2</title>
+    <title>國語找字遊戲 v4.3</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -192,7 +192,7 @@
 </head>
 <body>
 
-    <div class="footer-version">大榮老師製作 © 2026 | Version 4.2 (v4.2)</div>
+    <div class="footer-version">大榮老師製作 © 2026 | Version 4.3 (v4.3)</div>
 
     <div id="init-loader">
         <i class="fas fa-circle-notch fa-spin text-5xl mb-4" style="color: var(--btn-blue)"></i>
@@ -317,7 +317,8 @@
     <div id="fill-blank-modal" class="modal-overlay">
         <div class="modal-content relative flex-col md:flex-row">
             <div class="modal-header-bar" style="background: var(--btn-blue); z-index: 10;"></div>
-            <button onclick="document.getElementById('fill-blank-modal').classList.remove('show')" class="close-btn z-20"><i class="fas fa-times"></i></button>
+            <!-- 👉 修正 3：替換為自訂的強制通關攔截函式 -->
+            <button onclick="closeFillBlankModal()" class="close-btn z-20"><i class="fas fa-times"></i></button>
             
             <div id="fb-loading" class="w-full text-center py-10 flex flex-col items-center justify-center min-h-[300px]">
                 <i class="fas fa-pen-fancy text-5xl mb-4 text-purple-400 animate-pulse"></i>
@@ -882,7 +883,33 @@
 
             if (matchedWord && !foundWords.includes(matchedWord)) {
                 foundWords.push(matchedWord);
-                const color = earthTonePalette[colorIndex % earthTonePalette.length]; colorIndex++;
+                
+                // 👉 修正 1：鄰近避色演算法與隨機明暗度微調
+                let neighborColors = new Set();
+                cellsToMark.forEach(cell => {
+                    if (!cell) return;
+                    let r = parseInt(cell.dataset.r), c = parseInt(cell.dataset.c);
+                    for (let dRow = -1; dRow <= 1; dRow++) {
+                        for (let dCol = -1; dCol <= 1; dCol++) {
+                            if (dRow === 0 && dCol === 0) continue;
+                            let nr = r + dRow, nc = c + dCol;
+                            if (nr >= 0 && nr < GRID_SIZE && nc >= 0 && nc < GRID_SIZE) {
+                                let neighbor = document.querySelector(`.cell[data-r="${nr}"][data-c="${nc}"]`);
+                                if (neighbor && neighbor.classList.contains('found') && neighbor._foundColors) {
+                                    neighbor._foundColors.forEach(col => neighborColors.add(col));
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                // 過濾掉周圍已存在的顏色
+                let availableColors = earthTonePalette.filter(c => !neighborColors.has(c.bg));
+                let baseColorObj = availableColors.length > 0 ? availableColors[Math.floor(Math.random() * availableColors.length)] : earthTonePalette[Math.floor(Math.random() * earthTonePalette.length)];
+                
+                const color = baseColorObj;
+                const brightnessVal = 0.85 + Math.random() * 0.3; // 產生 0.85 ~ 1.15 的明暗度差異
+
                 cellsToMark.forEach(cell => {
                     if(cell) {
                         cell.classList.remove('selected'); cell.classList.add('found');
@@ -890,7 +917,10 @@
                         if (!cell._foundColors.includes(color.bg)) cell._foundColors.push(color.bg);
                         if (cell._foundColors.length === 1) cell.style.setProperty('background', cell._foundColors[0], 'important');
                         else cell.style.setProperty('background', `linear-gradient(135deg, ${cell._foundColors.join(', ')})`, 'important');
-                        cell.style.setProperty('border-color', color.border, 'important'); cell.style.setProperty('color', color.text, 'important');
+                        cell.style.setProperty('border-color', color.border, 'important'); 
+                        cell.style.setProperty('color', color.text, 'important');
+                        // 加入亮度變化
+                        cell.style.setProperty('filter', `brightness(${brightnessVal})`, 'important');
                     }
                 });
                 
@@ -900,6 +930,7 @@
                     tag.innerHTML = `<span>${matchedWord}</span> ${tag.querySelector('.crown-icon') ? '<i class="fas fa-crown crown-icon"></i>' : ''}`;
                     tag.style.setProperty('background-color', color.bg, 'important'); tag.style.setProperty('border-color', color.border, 'important');
                     tag.style.setProperty('color', color.text, 'important'); tag.style.setProperty('box-shadow', `0 4px 0 ${color.border}`, 'important');
+                    tag.style.setProperty('filter', `brightness(${brightnessVal})`, 'important');
                 }
                 
                 score += matchedWord.length * 50;
@@ -1089,6 +1120,10 @@
             const colArticle = document.getElementById('fb-article-col');
             const colWords = document.getElementById('fb-words-col');
             
+            // 👉 修正 3：自動置頂新文章與選項區
+            colArticle.scrollTop = 0;
+            colWords.scrollTop = 0;
+            
             // 重置 UI 與提示訊息
             document.getElementById('header-msg-area').innerHTML = '';
             document.getElementById('learning-hints-container').innerHTML = '';
@@ -1139,8 +1174,77 @@
             wordsToBank.sort(() => Math.random() - 0.5);
             wordsToBank.forEach((w, i) => {
                 const wDiv = document.createElement('div'); wDiv.className = 'drag-word'; wDiv.innerText = w; wDiv.draggable = true; wDiv.id = 'drag-word-' + currentEssayRound + '-' + i;
+                
+                // 原有電腦端拖曳
                 wDiv.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', w); e.dataTransfer.setData('source-id', wDiv.id); });
+                
+                // 👉 修正 2：新增手機端原生觸控拖曳邏輯
+                let touchTimer;
+                let isDragging = false;
+                let ghostEl = null;
+                let startX, startY;
+
+                wDiv.addEventListener('touchstart', (e) => {
+                    const touch = e.touches[0];
+                    startX = touch.clientX; startY = touch.clientY;
+                    // 長按 150 毫秒後啟動拖曳，用以區分「滑動頁面」與「開始拖拉語詞」
+                    touchTimer = setTimeout(() => {
+                        isDragging = true;
+                        ghostEl = wDiv.cloneNode(true);
+                        ghostEl.style.position = 'fixed';
+                        ghostEl.style.left = touch.clientX - wDiv.offsetWidth / 2 + 'px';
+                        ghostEl.style.top = touch.clientY - wDiv.offsetHeight / 2 + 'px';
+                        ghostEl.style.opacity = '0.8';
+                        ghostEl.style.zIndex = '99999';
+                        ghostEl.style.pointerEvents = 'none'; // 讓觸控事件穿透替身
+                        ghostEl.style.transform = 'scale(1.1)';
+                        document.body.appendChild(ghostEl);
+                        wDiv.style.opacity = '0.4';
+                        if (navigator.vibrate) navigator.vibrate(50); // 輕微震動回饋
+                    }, 150);
+                }, {passive: true});
+
+                wDiv.addEventListener('touchmove', (e) => {
+                    const touch = e.touches[0];
+                    if (!isDragging) {
+                        // 若在 150 毫秒內發生大幅度移動，視為滑動畫面，取消拖曳判定
+                        if (Math.abs(touch.clientX - startX) > 10 || Math.abs(touch.clientY - startY) > 10) clearTimeout(touchTimer);
+                        return;
+                    }
+                    e.preventDefault(); // 拖曳時禁止畫面捲動
+                    ghostEl.style.left = touch.clientX - ghostEl.offsetWidth / 2 + 'px';
+                    ghostEl.style.top = touch.clientY - ghostEl.offsetHeight / 2 + 'px';
+                    
+                    // 動態標示底下的空格
+                    const elemBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+                    const dropzone = elemBelow ? elemBelow.closest('.dropzone') : null;
+                    document.querySelectorAll('.dropzone').forEach(z => z.classList.remove('active-target'));
+                    if (dropzone && !dropzone.classList.contains('correct') && !dropzone.classList.contains('checking')) {
+                        dropzone.classList.add('active-target');
+                    }
+                }, {passive: false});
+
+                wDiv.addEventListener('touchend', (e) => {
+                    clearTimeout(touchTimer);
+                    document.querySelectorAll('.dropzone').forEach(z => z.classList.remove('active-target'));
+                    if (!isDragging) return;
+                    isDragging = false;
+                    
+                    if (ghostEl) { ghostEl.remove(); ghostEl = null; }
+                    wDiv.style.opacity = '1';
+
+                    // 尋找放開手指時，底下的空格
+                    const touch = e.changedTouches[0];
+                    const elemBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+                    const dropzone = elemBelow ? elemBelow.closest('.dropzone') : null;
+
+                    if (dropzone && !dropzone.classList.contains('correct') && !dropzone.classList.contains('checking')) {
+                        handleFillBlank(dropzone, w, wDiv);
+                    }
+                });
+
                 wDiv.addEventListener('click', () => {
+                    if (isDragging) return; // 避免拖曳結束時誤觸點擊
                     document.querySelectorAll('.drag-word').forEach(el => el.classList.remove('selected-for-touch'));
                     wDiv.classList.add('selected-for-touch'); selectedTouchWord = { word: w, id: wDiv.id, el: wDiv };
                 });
@@ -1175,6 +1279,21 @@
         function nextEssayRound() {
             currentEssayRound++;
             loadEssayRound();
+        }
+
+        // 👉 修正 3：加入防呆關閉按鈕邏輯
+        function closeFillBlankModal() {
+            if (currentEssayRound <= 5) {
+                const btn = document.querySelector('#fill-blank-modal .close-btn');
+                btn.classList.remove('btn-shake');
+                void btn.offsetWidth; // 觸發 CSS 重繪以重新啟動動畫
+                btn.classList.add('btn-shake');
+                
+                const headerMsg = document.getElementById('header-msg-area');
+                headerMsg.innerHTML = '<span class="text-red-500 font-bold animate-pulse"><i class="fas fa-lock"></i> 須完成 5 關才能關閉</span>';
+                return;
+            }
+            document.getElementById('fill-blank-modal').classList.remove('show');
         }
 
         function handleFillBlank(zone, word, sourceEl) {
