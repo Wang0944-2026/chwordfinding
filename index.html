@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>國語找字遊戲 v3.7</title>
+    <title>國語找字遊戲 v3.11</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -168,7 +168,7 @@
 </head>
 <body>
 
-    <div class="footer-version">大榮老師製作 © 2026 | Version 3.7 (v3.7)</div>
+    <div class="footer-version">大榮老師製作 © 2026 | Version 3.11 (v3.11)</div>
 
     <div id="init-loader">
         <i class="fas fa-circle-notch fa-spin text-5xl mb-4" style="color: var(--btn-blue)"></i>
@@ -216,7 +216,7 @@
 
         <div class="text-center mb-4">
             <p class="font-bold px-4 py-2 rounded-full inline-block bg-white border-2" style="border-color: var(--panel-border); color: var(--text-light);">
-                <i class="fas fa-info-circle" style="color: var(--btn-blue)"></i> 玩法：點選語詞的「第一個字」，再點「最後一個字」連線
+                <i class="fas fa-info-circle" style="color: var(--btn-blue)"></i> 玩法：點選目標語詞的「頭」「尾」兩字連線，完成測驗解鎖短文關卡
             </p>
         </div>
 
@@ -304,24 +304,33 @@
             <div id="fb-article-col" class="article-col hidden">
                 <div class="flex items-center gap-3 mb-4">
                     <i class="fas fa-book-reader text-3xl text-blue-400"></i>
-                    <h2 class="text-2xl font-bold text-gray-700">短文測驗</h2>
+                    <h2 class="text-2xl font-bold text-gray-700 flex items-center">
+                        短文測驗 <span id="essay-round-badge" class="text-sm bg-blue-100 text-blue-600 px-2 py-1 rounded-full ml-3 shadow-sm border border-blue-200">第 1 / 5 關</span>
+                    </h2>
+                    <!-- 👉 新增：標題右側提示語區塊 -->
+                    <div id="header-msg-area" class="ml-auto text-[1.05rem]"></div>
                 </div>
                 <div id="article-container" class="article-box"></div>
-                <div id="retry-msg" class="hidden text-center text-red-500 font-bold mt-4 animate-bounce"><i class="fas fa-exclamation-circle"></i> 哎呀，有幾個填錯了，請再試一次！</div>
-                <div id="all-correct-msg" class="hidden text-center text-green-600 font-black text-2xl mt-4" style="animation: bounceIn 0.8s;"><i class="fas fa-check-double"></i> 太棒了！短文測驗全對！</div>
             </div>
             
             <div id="fb-words-col" class="words-col hidden">
                 <h3 class="text-lg font-bold text-gray-700 border-b-2 border-gray-200 pb-2">
                     <i class="fas fa-puzzle-piece text-orange-400"></i> 填空選項
                 </h3>
-                <p class="text-sm text-gray-500 font-bold mb-2">請點擊下方語詞，再點擊文章空格填入。</p>
+                <p class="text-sm text-gray-500 font-bold mb-2">請將下方語詞「拖曳」或「點擊」填入文章對應空格。</p>
                 
                 <div id="word-bank-container" class="word-bank flex-1 content-start"></div>
+                
+                <!-- 👉 新增：右側學習提示面板容器 -->
+                <div id="learning-hints-container" class="w-full mt-2 hidden"></div>
                 
                 <div class="mt-4 pt-4 border-t-2 border-gray-200">
                     <button id="check-ans-btn" onclick="checkAllAnswers()" class="btn w-full hidden" style="background: var(--btn-green); box-shadow: 0 4px 0 var(--btn-green-hover); font-size: 1.1rem; padding: 12px;">
                         <i class="fas fa-tasks"></i> 批改答案
+                    </button>
+                    <!-- 👉 新增：下一關按鈕 -->
+                    <button id="next-essay-btn" onclick="nextEssayRound()" class="btn w-full hidden" style="background: var(--btn-blue); box-shadow: 0 4px 0 var(--btn-blue-hover); font-size: 1.1rem; padding: 12px;">
+                        <i class="fas fa-arrow-right"></i> 進入下一關
                     </button>
                 </div>
             </div>
@@ -357,6 +366,10 @@
         let failedWords = []; 
         let selectedTouchWord = null; 
         let isEndGameTriggered = false; 
+        
+        // 👉 新增：控制 5 篇短文測驗的狀態變數
+        let currentEssayRound = 1;
+        let currentEssayList = [];
 
         // 👉 將30色莫蘭迪色盤「強制交錯」排列，確保相鄰色系對比強烈，絕不撞色
         const earthTonePalette = [
@@ -400,15 +413,40 @@
 
         window.onload = async function() {
             try {
-                const response = await fetch(GAS_API_URL);
-                if (!response.ok) throw new Error("網路連線異常");
-                const data = await response.json();
+                // 👉 修正 1：加入時間戳章避免瀏覽器快取，並強制跟隨 GAS 重新導向
+                const fetchUrl = GAS_API_URL + (GAS_API_URL.includes('?') ? '&' : '?') + 't=' + new Date().getTime();
+                const response = await fetch(fetchUrl, {
+                    method: 'GET',
+                    redirect: 'follow'
+                });
+                
+                if (!response.ok) throw new Error(`網路連線異常 (HTTP ${response.status})`);
+                
+                // 👉 修正 2：先以純文字讀取。若直接用 json()，遇到權限錯誤吐出 HTML 時會導致整個網頁白畫面
+                const textData = await response.text();
+                let data;
+                try {
+                    data = JSON.parse(textData);
+                } catch (e) {
+                    console.error("API 回傳了非 JSON 的格式，內容為:", textData);
+                    throw new Error("後端權限異常，請確認 GAS 部署權限是否設為「所有人 (Anyone)」");
+                }
+                
+                // 👉 修正 3：精準捕捉後端 (.gs) 拋出的錯誤
+                if (data.error) throw new Error(`後端回報錯誤: ${data.error}`);
                 
                 allWordData = processSheetData(data.words || data);
                 cachedStories = data.stories || {};
                 
                 if (allWordData.length === 0) throw new Error("讀取到的題庫為空");
             } catch (err) {
+                // 👉 修正 4：在畫面上顯示明顯的錯誤狀態，方便我們找出原因
+                console.error("⛔ 題庫讀取失敗詳細原因:", err);
+                const loaderMsg = document.getElementById('loader-msg');
+                if (loaderMsg) {
+                    loaderMsg.innerText = "連線異常，載入預設題庫中...";
+                    loaderMsg.style.color = "#E74C3C";
+                }
                 console.log("ℹ️ " + err.message + "，使用預設題庫。");
                 allWordData = getFallbackData();
             }
@@ -980,8 +1018,7 @@
             const colArticle = document.getElementById('fb-article-col');
             const colWords = document.getElementById('fb-words-col');
             
-            document.getElementById('retry-msg').classList.add('hidden');
-            document.getElementById('all-correct-msg').classList.add('hidden');
+            document.getElementById('header-msg-area').innerHTML = '';
             
             loadingBox.innerHTML = `<i class="fas fa-pen-fancy text-5xl mb-4 text-purple-400 animate-pulse"></i><p class="text-xl font-bold text-gray-600">正在準備專屬短文測驗<span class="loading-dots"></span></p><p class="text-sm text-gray-400 mt-2">尋找快取文章或呼叫 AI 中</p>`;
             
@@ -990,45 +1027,53 @@
             colArticle.classList.add('hidden');
             colWords.classList.add('hidden');
             
-            selectedTouchWord = null; 
-            document.getElementById('check-ans-btn').classList.add('hidden');
-
-            let allWords = currentLessonData.map(w => w.word);
             let cachedList = cachedStories[currentLessonName] || [];
-            let aiText = "";
-            let allWordsStr = allWords.join('、');
+            currentEssayRound = 1;
 
-            // 👉 邏輯更新：確保 K2~T2 滿10篇。若小於10篇(被刪除)，使用現有文章讓玩家秒進遊戲，並於背景呼叫AI補齊。
-            if (cachedList.length >= 10) {
-                aiText = cachedList[Math.floor(Math.random() * cachedList.length)];
-                await new Promise(resolve => setTimeout(resolve, 800)); 
+            // 👉 五連關機制：從快取隨機挑 5 篇。若不夠 5 篇則重複利用並於背景呼叫補齊
+            if (cachedList.length >= 5) {
+                currentEssayList = [...cachedList].sort(() => 0.5 - Math.random()).slice(0, 5);
+            } else if (cachedList.length > 0) {
+                currentEssayList = [];
+                for(let i=0; i<5; i++) currentEssayList.push(cachedList[i % cachedList.length]);
+                let allWordsStr = currentLessonData.map(w => w.word).join('、');
+                callGeminiAPI(allWordsStr, currentLessonName).catch(e => console.warn("背景補充短文失敗:", e));
             } else {
-                if (cachedList.length > 0) {
-                    // 有庫存就先抽一篇玩，不用等AI
-                    aiText = cachedList[Math.floor(Math.random() * cachedList.length)];
-                    await new Promise(resolve => setTimeout(resolve, 800)); 
-                    // 背景偷偷呼叫 Gemini 幫忙補齊缺少的文章
-                    callGeminiAPI(allWordsStr, currentLessonName).catch(e => console.warn("背景補充短文失敗:", e));
-                } else {
-                    // 完全沒文章，只能等 AI 生成
-                    try {
-                        aiText = await callGeminiAPI(allWordsStr, currentLessonName);
-                        if (!cachedStories[currentLessonName]) cachedStories[currentLessonName] = [];
-                        cachedStories[currentLessonName].push(aiText); 
-                    } catch (err) {
-                        console.warn("API 生成失敗，降級使用快取:", err);
-                        // 異常處理...
-                        let errTitle = "網路不穩或生成失敗";
-                        let errDesc = "目前沒有足夠的快取文章，請稍候重試。";
-                        if (String(err).includes("quota") || String(err).includes("exceeded") || String(err).includes("limit")) {
-                            errTitle = "AI 老師太忙碌啦！";
-                            errDesc = "目前有太多人同時使用，請等待 1 分鐘後再點擊測驗重試。";
-                        }
-                        loadingBox.innerHTML = `<i class="fas fa-exclamation-triangle text-5xl mb-6 text-red-400"></i><p class="text-xl font-bold text-red-600 mb-2">${errTitle}</p><p class="text-sm text-gray-500">${errDesc}</p>`;
-                        return; 
-                    }
+                try {
+                    let allWordsStr = currentLessonData.map(w => w.word).join('、');
+                    let newText = await callGeminiAPI(allWordsStr, currentLessonName);
+                    if (!cachedStories[currentLessonName]) cachedStories[currentLessonName] = [];
+                    cachedStories[currentLessonName].push(newText); 
+                    currentEssayList = Array(5).fill(newText);
+                } catch (err) {
+                    loadingBox.innerHTML = `<i class="fas fa-exclamation-triangle text-5xl mb-6 text-red-400"></i><p class="text-xl font-bold text-red-600 mb-2">生成失敗</p><p class="text-sm text-gray-500">目前沒有足夠的快取文章，請稍候重試。</p>`;
+                    return; 
                 }
             }
+            
+            await new Promise(resolve => setTimeout(resolve, 600)); 
+            loadEssayRound();
+        }
+
+        function loadEssayRound() {
+            const loadingBox = document.getElementById('fb-loading');
+            const colArticle = document.getElementById('fb-article-col');
+            const colWords = document.getElementById('fb-words-col');
+            
+            // 重置 UI 與提示訊息
+            document.getElementById('header-msg-area').innerHTML = '';
+            document.getElementById('learning-hints-container').innerHTML = '';
+            document.getElementById('learning-hints-container').classList.add('hidden');
+            document.getElementById('check-ans-btn').classList.add('hidden');
+            document.getElementById('next-essay-btn').classList.add('hidden');
+            document.getElementById('check-ans-btn').disabled = false;
+            document.getElementById('check-ans-btn').innerHTML = '<i class="fas fa-tasks"></i> 批改答案';
+            
+            document.getElementById('essay-round-badge').innerText = `第 ${currentEssayRound} / 5 關`;
+            
+            selectedTouchWord = null; 
+            let aiText = currentEssayList[currentEssayRound - 1];
+            let allWords = currentLessonData.map(w => w.word);
 
             const articleContainer = document.getElementById('article-container');
             const bankContainer = document.getElementById('word-bank-container');
@@ -1053,7 +1098,10 @@
             }
 
             if (!hasAnyMatch) {
-                loadingBox.innerHTML = `<i class="fas fa-exclamation-triangle text-5xl mb-4 text-red-400"></i><p class="text-lg font-bold text-red-600">生成文章未包含目標語詞，請關閉重試。</p>`;
+                // 若偶發文章無符合字詞，直接跳下一關
+                currentEssayRound++;
+                if (currentEssayRound <= 5) loadEssayRound();
+                else document.getElementById('fill-blank-modal').classList.remove('show');
                 return;
             }
 
@@ -1061,7 +1109,7 @@
 
             wordsToBank.sort(() => Math.random() - 0.5);
             wordsToBank.forEach((w, i) => {
-                const wDiv = document.createElement('div'); wDiv.className = 'drag-word'; wDiv.innerText = w; wDiv.draggable = true; wDiv.id = 'drag-word-' + i;
+                const wDiv = document.createElement('div'); wDiv.className = 'drag-word'; wDiv.innerText = w; wDiv.draggable = true; wDiv.id = 'drag-word-' + currentEssayRound + '-' + i;
                 wDiv.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', w); e.dataTransfer.setData('source-id', wDiv.id); });
                 wDiv.addEventListener('click', () => {
                     document.querySelectorAll('.drag-word').forEach(el => el.classList.remove('selected-for-touch'));
@@ -1094,11 +1142,17 @@
 
             loadingBox.classList.add('hidden'); colArticle.classList.remove('hidden'); colWords.classList.remove('hidden');
         }
+        
+        function nextEssayRound() {
+            currentEssayRound++;
+            loadEssayRound();
+        }
 
         function handleFillBlank(zone, word, sourceEl) {
-            document.getElementById('retry-msg').classList.add('hidden');
+            document.getElementById('header-msg-area').innerHTML = ''; // 動作時清除頂部提示
             if (zone.classList.contains('filled')) {
-                let prevEl = Array.from(document.querySelectorAll('.drag-word')).find(el => el.innerText.trim() === zone.innerText.trim());
+                let prevWord = zone.innerText.trim();
+                let prevEl = Array.from(document.querySelectorAll('.drag-word')).find(el => el.innerText.trim() === prevWord);
                 if (prevEl) prevEl.classList.remove('used');
             }
             zone.innerText = word; zone.classList.add('filled'); zone.classList.remove('wrong');
@@ -1121,13 +1175,16 @@
             checkBtn.disabled = true;
             checkBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 批改中...';
             
-            const retryMsg = document.getElementById('retry-msg');
-            const allCorrectMsg = document.getElementById('all-correct-msg');
-            retryMsg.classList.add('hidden');
+            const headerMsg = document.getElementById('header-msg-area');
+            const hintsContainer = document.getElementById('learning-hints-container');
+            headerMsg.innerHTML = '';
+            hintsContainer.innerHTML = ''; 
+            hintsContainer.classList.add('hidden');
             
             const zones = document.querySelectorAll('.dropzone');
             let allCorrect = true;
             let hasWrong = false;
+            let wrongWordsHints = new Set(); // 👉 新增：用來蒐集這次答錯的語詞解釋
 
             try {
                 for (let i = 0; i < zones.length; i++) {
@@ -1171,6 +1228,12 @@
                         zone.classList.add('wrong');
                         zone.dataset.failed = 'true'; // 👉 新增：在空格上貼上「已答錯過」的標籤
                         
+                        // 👉 新增：查找填錯的語詞意思，並加入學習清單中
+                        let wrongData = currentLessonData.find(w => w.word === filledWord);
+                        if (wrongData) {
+                            wrongWordsHints.add(`<b>【${filledWord}】</b> ${wrongData.clue}`);
+                        }
+                        
                         setTimeout(() => {
                             if (!zone.classList.contains('correct')) {
                                 let currentText = zone.innerText.trim();
@@ -1191,14 +1254,36 @@
             } finally {
                 if (allCorrect) {
                     checkBtn.classList.add('hidden');
-                    allCorrectMsg.classList.remove('hidden');
-                    setTimeout(() => { showWinEffect(); }, 500);
+                    headerMsg.innerHTML = '<span class="text-green-600 font-black animate-bounce inline-block"><i class="fas fa-check-double"></i> 太棒了！本關全對！</span>';
+                    setTimeout(() => { showWinEffect(); }, 200);
+                    
+                    // 👉 五連關卡判斷
+                    if (currentEssayRound < 5) {
+                        document.getElementById('next-essay-btn').classList.remove('hidden');
+                    } else {
+                        setTimeout(() => {
+                            document.getElementById('fill-blank-modal').classList.remove('show');
+                            showGameOverModal(score, timeElapsed);
+                        }, 1500);
+                    }
                 } else {
                     checkBtn.disabled = false;
                     checkBtn.innerHTML = '<i class="fas fa-tasks"></i> 批改答案';
                     checkBtn.classList.add('hidden'); 
                     if (hasWrong) {
-                        retryMsg.classList.remove('hidden');
+                        headerMsg.innerHTML = '<span class="text-red-500 font-bold animate-pulse inline-block"><i class="fas fa-exclamation-circle"></i> 哎呀，有幾個填錯了！</span>';
+                        if (wrongWordsHints.size > 0) {
+                            let hintHtml = `
+                                <div class="text-left text-[0.95rem] bg-[#FCE8E8] p-4 rounded-xl border-2 border-[#F5C6C6] text-[#C0392B]" style="animation: fadeIn 0.5s;">
+                                    <div class="font-black mb-2"><i class="fas fa-lightbulb text-yellow-500"></i> 學習提示：剛剛填錯的語詞</div>
+                                    <ul class="list-disc pl-5 space-y-1 font-medium">
+                                        ${Array.from(wrongWordsHints).map(h => `<li>${h}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            `;
+                            hintsContainer.innerHTML = hintHtml;
+                            hintsContainer.classList.remove('hidden');
+                        }
                     }
                 }
             }
