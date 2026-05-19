@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>國語找字遊戲 v4.3</title>
+    <title>國語找字遊戲 v4.4</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -173,7 +173,8 @@
         .coin-popup { position: absolute; top: -30px; left: 50%; transform: translateX(-50%); color: #F1C40F; font-weight: 900; font-size: 1.2rem; text-shadow: 0 2px 4px rgba(0,0,0,0.2); pointer-events: none; z-index: 50; animation: floatUp 0.8s forwards ease-out; opacity: 0; }
 
         .word-bank { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-start; width: 100%; }
-        .drag-word { background: var(--panel-bg); border: 2px solid var(--btn-blue); color: var(--btn-blue); padding: 8px 16px; border-radius: 20px; font-weight: bold; cursor: grab; user-select: none; transition: all 0.2s; box-shadow: 0 4px 0 var(--btn-blue); }
+        /* 👉 修正 1：加入 touch-action: none; 從底層阻斷原生滾動，徹底消滅拖曳時的卡頓衝突 */
+        .drag-word { touch-action: none; background: var(--panel-bg); border: 2px solid var(--btn-blue); color: var(--btn-blue); padding: 8px 16px; border-radius: 20px; font-weight: bold; cursor: grab; user-select: none; transition: all 0.2s; box-shadow: 0 4px 0 var(--btn-blue); }
         .drag-word:active { cursor: grabbing; transform: translateY(4px); box-shadow: none; }
         .drag-word.selected-for-touch { background: var(--btn-blue); color: white; transform: translateY(2px); box-shadow: 0 2px 0 var(--btn-blue-hover); }
         .drag-word.used { display: none; } 
@@ -192,7 +193,7 @@
 </head>
 <body>
 
-    <div class="footer-version">大榮老師製作 © 2026 | Version 4.3 (v4.3)</div>
+    <div class="footer-version">大榮老師製作 © 2026 | Version 4.4 (v4.4)</div>
 
     <div id="init-loader">
         <i class="fas fa-circle-notch fa-spin text-5xl mb-4" style="color: var(--btn-blue)"></i>
@@ -1178,40 +1179,54 @@
                 // 原有電腦端拖曳
                 wDiv.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', w); e.dataTransfer.setData('source-id', wDiv.id); });
                 
-                // 👉 修正 2：新增手機端原生觸控拖曳邏輯
-                let touchTimer;
+                // 👉 修正 2：重構手機端原生觸控拖曳邏輯，移除 setTimeout 停頓感，加入即時懸浮回饋
                 let isDragging = false;
                 let ghostEl = null;
                 let startX, startY;
+                let hasMoved = false;
 
                 wDiv.addEventListener('touchstart', (e) => {
                     const touch = e.touches[0];
                     startX = touch.clientX; startY = touch.clientY;
-                    // 長按 150 毫秒後啟動拖曳，用以區分「滑動頁面」與「開始拖拉語詞」
-                    touchTimer = setTimeout(() => {
-                        isDragging = true;
-                        ghostEl = wDiv.cloneNode(true);
-                        ghostEl.style.position = 'fixed';
-                        ghostEl.style.left = touch.clientX - wDiv.offsetWidth / 2 + 'px';
-                        ghostEl.style.top = touch.clientY - wDiv.offsetHeight / 2 + 'px';
-                        ghostEl.style.opacity = '0.8';
-                        ghostEl.style.zIndex = '99999';
-                        ghostEl.style.pointerEvents = 'none'; // 讓觸控事件穿透替身
-                        ghostEl.style.transform = 'scale(1.1)';
-                        document.body.appendChild(ghostEl);
-                        wDiv.style.opacity = '0.4';
-                        if (navigator.vibrate) navigator.vibrate(50); // 輕微震動回饋
-                    }, 150);
+                    isDragging = false;
+                    hasMoved = false;
+                    wDiv.style.transform = 'scale(0.95)'; // 觸碰時的微小內縮回饋
                 }, {passive: true});
 
                 wDiv.addEventListener('touchmove', (e) => {
                     const touch = e.touches[0];
+                    
                     if (!isDragging) {
-                        // 若在 150 毫秒內發生大幅度移動，視為滑動畫面，取消拖曳判定
-                        if (Math.abs(touch.clientX - startX) > 10 || Math.abs(touch.clientY - startY) > 10) clearTimeout(touchTimer);
-                        return;
+                        const dx = Math.abs(touch.clientX - startX);
+                        const dy = Math.abs(touch.clientY - startY);
+                        // 只要移動超過 5px，立刻(0延遲)啟動拖曳
+                        if (dx > 5 || dy > 5) {
+                            isDragging = true;
+                            hasMoved = true;
+                            wDiv.style.transform = ''; // 恢復原狀
+                            
+                            ghostEl = wDiv.cloneNode(true);
+                            ghostEl.style.position = 'fixed';
+                            ghostEl.style.left = touch.clientX - wDiv.offsetWidth / 2 + 'px';
+                            ghostEl.style.top = touch.clientY - wDiv.offsetHeight / 2 + 'px';
+                            ghostEl.style.opacity = '0.9';
+                            ghostEl.style.zIndex = '99999';
+                            ghostEl.style.pointerEvents = 'none'; // 讓觸控事件穿透替身
+                            ghostEl.style.margin = '0';
+                            ghostEl.style.boxShadow = '0 10px 25px rgba(0,0,0,0.15)'; // 拖曳時的陰影浮空感
+                            ghostEl.style.transform = 'scale(1.1)'; // 放大
+                            document.body.appendChild(ghostEl);
+                            
+                            wDiv.style.opacity = '0.3';
+                            if (navigator.vibrate) navigator.vibrate(20); // 輕微震動回饋
+                        } else {
+                            return;
+                        }
                     }
-                    e.preventDefault(); // 拖曳時禁止畫面捲動
+                    
+                    if (e.cancelable) e.preventDefault(); // 拖曳時強制禁止畫面捲動
+                    
+                    // 讓替身元素平滑跟隨手指
                     ghostEl.style.left = touch.clientX - ghostEl.offsetWidth / 2 + 'px';
                     ghostEl.style.top = touch.clientY - ghostEl.offsetHeight / 2 + 'px';
                     
@@ -1225,8 +1240,9 @@
                 }, {passive: false});
 
                 wDiv.addEventListener('touchend', (e) => {
-                    clearTimeout(touchTimer);
                     document.querySelectorAll('.dropzone').forEach(z => z.classList.remove('active-target'));
+                    wDiv.style.transform = ''; // 釋放時恢復原狀
+                    
                     if (!isDragging) return;
                     isDragging = false;
                     
@@ -1244,7 +1260,7 @@
                 });
 
                 wDiv.addEventListener('click', () => {
-                    if (isDragging) return; // 避免拖曳結束時誤觸點擊
+                    if (hasMoved) return; // 避免拖曳結束時誤觸點擊填答
                     document.querySelectorAll('.drag-word').forEach(el => el.classList.remove('selected-for-touch'));
                     wDiv.classList.add('selected-for-touch'); selectedTouchWord = { word: w, id: wDiv.id, el: wDiv };
                 });
