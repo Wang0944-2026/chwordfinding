@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>國語找字遊戲 v3.5</title>
+    <title>國語找字遊戲 v3.7</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -117,6 +117,9 @@
         .btn-sentence:hover { background: var(--btn-blue-hover); }
         .btn-quiz { background: var(--btn-green); box-shadow: 0 4px 0 #9DB099; }
         .btn-quiz:hover { background: var(--btn-green-hover); }
+        
+        /* 👉 新增：按鈕震動與警示狀態 */
+        .btn-shake { animation: shake 0.4s !important; background-color: #E74C3C !important; box-shadow: 0 4px 0 #C0392B !important; color: white !important; }
 
         #fill-blank-modal .modal-content {
             width: 1000px; max-width: 95%; padding: 40px 30px; background: #FAFAFA;
@@ -165,7 +168,7 @@
 </head>
 <body>
 
-    <div class="footer-version">大榮老師製作 © 2026 | Version 3.5 (v3.5)</div>
+    <div class="footer-version">大榮老師製作 © 2026 | Version 3.7 (v3.7)</div>
 
     <div id="init-loader">
         <i class="fas fa-circle-notch fa-spin text-5xl mb-4" style="color: var(--btn-blue)"></i>
@@ -865,6 +868,21 @@
         }
 
         function closeModal() {
+            // 👉 新增：強制測驗防護網
+            if (currentModalWord && !quizStatus[currentModalWord]) {
+                const quizBtn = document.getElementById('btn-ai-quiz');
+                
+                // 觸發重新繪製以確保動畫可以重複播放
+                quizBtn.classList.remove('btn-shake');
+                void quizBtn.offsetWidth; 
+                quizBtn.classList.add('btn-shake');
+                
+                // 動畫結束後移除，以便下次點擊又能震動
+                setTimeout(() => quizBtn.classList.remove('btn-shake'), 400);
+                
+                return; // 終止關閉視窗的動作
+            }
+
             document.getElementById('learning-modal').classList.remove('show');
             currentModalWord = null;
             if (foundWords.length === currentLessonData.length && Object.keys(quizStatus).length === currentLessonData.length && !isEndGameTriggered) {
@@ -1135,24 +1153,29 @@
                         zone.classList.remove('filled', 'wrong'); 
                         zone.classList.add('correct');
                         
-                        const popup = document.createElement('div');
-                        popup.className = 'coin-popup';
-                        popup.innerHTML = '+20 <i class="fas fa-coins text-yellow-500"></i>';
-                        zone.appendChild(popup);
-                        
-                        score += 20;
-                        document.getElementById('score-display').innerText = score;
-                        
-                        setTimeout(() => popup.remove(), 1000);
+                        // 👉 新增：只有「第一次」答對（沒有 failed 標記）才加分與顯示金幣
+                        if (!zone.dataset.failed) {
+                            const popup = document.createElement('div');
+                            popup.className = 'coin-popup';
+                            popup.innerHTML = '+20 <i class="fas fa-coins text-yellow-500"></i>';
+                            zone.appendChild(popup);
+                            
+                            score += 20;
+                            document.getElementById('score-display').innerText = score;
+                            
+                            setTimeout(() => popup.remove(), 1000);
+                        }
                     } else {
                         allCorrect = false;
                         hasWrong = true;
                         zone.classList.add('wrong');
+                        zone.dataset.failed = 'true'; // 👉 新增：在空格上貼上「已答錯過」的標籤
                         
                         setTimeout(() => {
                             if (!zone.classList.contains('correct')) {
                                 let currentText = zone.innerText.trim();
-                                let sourceEl = Array.from(document.querySelectorAll('.drag-word')).find(el => el.innerText.trim() === currentText);
+                                // 👉 強化退回邏輯：確保我們找的是已經在文章中（被標記為 used）的那個字詞
+                                let sourceEl = Array.from(document.querySelectorAll('.drag-word')).find(el => el.innerText.trim() === currentText && el.classList.contains('used'));
                                 zone.innerText = ''; zone.classList.remove('filled', 'wrong');
                                 if (sourceEl) sourceEl.classList.remove('used');
                                 checkAllZonesFilled(); 
