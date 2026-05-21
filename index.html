@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>國語找字遊戲 v4.5</title>
+    <title>國語找字遊戲 v5.1</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -125,8 +125,8 @@
         .btn-quiz { background: var(--btn-green); box-shadow: 0 4px 0 #9DB099; }
         .btn-quiz:hover { background: var(--btn-green-hover); }
         
-        /* 👉 新增：登入與排行榜專用樣式 */
-        .login-input { width: 100%; padding: 15px; border: 3px solid var(--panel-border); border-radius: 15px; font-size: 1.25rem; font-weight: bold; text-align: center; color: var(--text-main); margin-bottom: 15px; outline: none; transition: 0.3s; }
+        /* 👉 修正 1：明確加上 box-sizing: border-box，防止內距撐破容器 */
+        .login-input { width: 100%; padding: 15px; border: 3px solid var(--panel-border); border-radius: 15px; font-size: 1.25rem; font-weight: bold; text-align: center; color: var(--text-main); margin-bottom: 15px; outline: none; transition: 0.3s; box-sizing: border-box; }
         .login-input:focus { border-color: var(--btn-blue); box-shadow: 0 0 0 4px rgba(168, 184, 194, 0.3); }
         .rank-tab { flex: 1; padding: 10px; font-weight: bold; cursor: pointer; border-bottom: 3px solid transparent; color: var(--text-light); transition: 0.3s; }
         .rank-tab.active { border-bottom-color: var(--btn-orange); color: var(--btn-orange); }
@@ -181,6 +181,10 @@
         
         .coin-popup { position: absolute; top: -30px; left: 50%; transform: translateX(-50%); color: #F1C40F; font-weight: 900; font-size: 1.2rem; text-shadow: 0 2px 4px rgba(0,0,0,0.2); pointer-events: none; z-index: 50; animation: floatUp 0.8s forwards ease-out; opacity: 0; }
 
+        /* 👉 新增：指引箭頭動畫樣式 */
+        .guide-arrow { position: absolute; top: -55px; left: 50%; transform: translateX(-50%); animation: bounceUpDown 1s infinite; color: var(--btn-orange); font-size: 2rem; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.15)); z-index: 20; pointer-events: none; }
+        @keyframes bounceUpDown { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -10px); } }
+
         .word-bank { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-start; width: 100%; }
         /* 👉 修正 1：加入 touch-action: none; 從底層阻斷原生滾動，徹底消滅拖曳時的卡頓衝突 */
         .drag-word { touch-action: none; background: var(--panel-bg); border: 2px solid var(--btn-blue); color: var(--btn-blue); padding: 8px 16px; border-radius: 20px; font-weight: bold; cursor: grab; user-select: none; transition: all 0.2s; box-shadow: 0 4px 0 var(--btn-blue); }
@@ -202,7 +206,7 @@
 </head>
 <body>
 
-    <div class="footer-version">大榮老師製作 © 2026 | Version 4.5 (v4.5)</div>
+    <div class="footer-version">大榮老師製作 © 2026 | Version 5.1 (v5.1)</div>
 
     <div id="init-loader">
         <i class="fas fa-circle-notch fa-spin text-5xl mb-4" style="color: var(--btn-blue)"></i>
@@ -331,17 +335,18 @@
         </div>
     </div>
 
-    <!-- 👉 新增：登入 Modal -->
+    <!-- 👉 新增/修正：登入 Modal (優化行動端寬度與文字換行，徹底消除左右捲軸) -->
     <div id="login-modal" class="modal-overlay">
-        <div class="modal-content" style="max-width: 400px; padding: 40px 30px;">
-            <i class="fas fa-user-astronaut text-6xl mb-6 text-gray-400"></i>
-            <h2 class="text-2xl font-black mb-2">請輸入座號與姓名</h2>
-            <p class="text-sm font-bold text-gray-400 mb-6">格式範例：05洪天才 (兩碼座號+中文姓名)</p>
+        <!-- 👉 修正 2：使用動態計算 width: min(calc(100vw - 40px), 400px)，確保左右兩側必定有留白且不超出螢幕 -->
+        <div class="modal-content" style="width: min(calc(100vw - 40px), 400px); padding: 35px 20px; overflow-x: hidden; box-sizing: border-box;">
+            <i class="fas fa-user-astronaut text-5xl md:text-6xl mb-4 md:mb-6 text-gray-400"></i>
+            <h2 class="text-xl md:text-2xl font-black mb-2">請輸入座號與姓名</h2>
+            <p class="text-xs md:text-sm font-bold text-gray-400 mb-6 break-words whitespace-normal">格式範例：05洪天才 (兩碼座號+中文姓名)</p>
             
             <input type="text" id="username-input" class="login-input" placeholder="例如：05洪天才" autocomplete="off">
             <div id="login-error" class="text-red-500 font-bold text-sm mb-4 h-5 hidden">格式錯誤，請確認包含座號與姓名</div>
             
-            <button onclick="handleLogin()" class="btn w-full text-xl py-3" style="background: var(--btn-blue); box-shadow: 0 4px 0 var(--btn-blue-hover);">
+            <button onclick="handleLogin()" class="btn w-full text-lg md:text-xl py-3" style="background: var(--btn-blue); box-shadow: 0 4px 0 var(--btn-blue-hover);">
                 <i class="fas fa-sign-in-alt"></i> 進入遊戲
             </button>
         </div>
@@ -544,14 +549,15 @@
 
         // 👉 新增：處理登入邏輯
         function handleLogin() {
-            const input = document.getElementById('username-input').value.trim();
+            const rawInput = document.getElementById('username-input').value;
             const errorMsg = document.getElementById('login-error');
             
-            // 驗證格式：兩位數字開頭 + 至少一個中文字結尾
-            const regex = /^\d{2}[\u4e00-\u9fa5]+$/;
+            // 👉 修正 2：驗證格式並精確偵測是否包含特殊符號或空白
+            const isValidFormat = /^\d{2}[\u4e00-\u9fa5]+$/.test(rawInput);
+            const hasSpecialChar = /[^\d\u4e00-\u9fa5]/.test(rawInput); // 若包含數字與中文以外的字元(含空白)
             
-            if (regex.test(input)) {
-                currentUser = input;
+            if (isValidFormat) {
+                currentUser = rawInput;
                 document.getElementById('display-username').innerText = currentUser;
                 document.getElementById('login-modal').classList.remove('show');
                 errorMsg.classList.add('hidden');
@@ -561,6 +567,14 @@
                 btn.classList.remove('btn-shake');
                 void btn.offsetWidth;
                 btn.classList.add('btn-shake');
+                
+                // 根據錯誤類型給予精準提示
+                if (hasSpecialChar) {
+                    errorMsg.innerText = "不可加入特殊符號(含空白)";
+                } else {
+                    errorMsg.innerText = "格式錯誤，請確認包含座號與姓名";
+                }
+                
                 errorMsg.classList.remove('hidden');
                 setTimeout(() => btn.classList.remove('btn-shake'), 400);
             }
@@ -883,7 +897,14 @@
 
             placedWordsInfo = []; foundWords = []; perfectWords = []; quizStatus = {}; failedWords = []; 
             isEndGameTriggered = false; score = 0; colorIndex = 0; 
-            document.getElementById('essay-btn-container').classList.add('hidden');
+            
+            // 重置短文按鈕區塊與棋盤透明度
+            const essayBtnContainer = document.getElementById('essay-btn-container');
+            essayBtnContainer.classList.add('hidden');
+            const arrow = document.getElementById('guide-arrow-el');
+            if (arrow) arrow.remove();
+            document.getElementById('grid-container').style.opacity = '1';
+            document.getElementById('grid-container').style.pointerEvents = 'auto';
             
             // 👉 修正：加入防呆迴圈，確保所有字詞100%成功塞入棋盤，若塞不下則擴大棋盤重試
             let boardGenerated = false;
@@ -1153,12 +1174,7 @@
                 document.getElementById('found-count').innerText = foundWords.length;
                 setTimeout(() => openModal(matchedWord), 400);
 
-                if (foundWords.length === currentLessonData.length) {
-                    stopTimer(); 
-                    if (!lessonRecords[currentLessonName] || score > lessonRecords[currentLessonName].score) {
-                        lessonRecords[currentLessonName] = { score: score, time: timeElapsed };
-                    }
-                }
+                // 👉 修正 1：移除提早結束計時器與提早結算的邏輯，時間將繼續計算直到短文測驗結束
             }
             clearSelection();
         }
@@ -1198,9 +1214,40 @@
 
             document.getElementById('learning-modal').classList.remove('show');
             currentModalWord = null;
+            
+            // 👉 修正 1：移除直接呼叫 showGameOverModal 的邏輯，避免成績被切成兩筆
             if (foundWords.length === currentLessonData.length && Object.keys(quizStatus).length === currentLessonData.length && !isEndGameTriggered) {
-                isEndGameTriggered = true; 
-                setTimeout(() => showGameOverModal(score, timeElapsed), 500); 
+                isEndGameTriggered = true; // 鎖定狀態，避免重複觸發
+                
+                // 👉 修正 2：找字完成，計時結束
+                stopTimer();
+                
+                const essayBtn = document.getElementById('essay-btn-container');
+                if (essayBtn) {
+                    essayBtn.classList.remove('hidden');
+                    essayBtn.style.position = 'relative'; // 為絕對定位的箭頭做準備
+                    
+                    // 👉 修正 3：動態加入顯眼的下一步指引，並將棋盤調暗凸顯按鈕
+                    if (!document.getElementById('guide-arrow-el')) {
+                        const arrowBox = document.createElement('div');
+                        arrowBox.id = 'guide-arrow-el';
+                        arrowBox.className = 'guide-arrow flex flex-col items-center justify-center w-full';
+                        arrowBox.innerHTML = `
+                            <div class="text-[0.95rem] font-black bg-orange-100 text-orange-600 px-4 py-1 rounded-full border-2 border-orange-300 shadow-sm whitespace-nowrap">找字完成！下一步</div>
+                            <i class="fas fa-arrow-down text-3xl mt-1"></i>
+                        `;
+                        essayBtn.appendChild(arrowBox);
+                    }
+                    
+                    // 讓按鈕跳動
+                    essayBtn.querySelector('.btn').classList.add('animate-pulse');
+                    
+                    // 淡化棋盤
+                    const gridCont = document.getElementById('grid-container');
+                    gridCont.style.transition = 'opacity 0.5s';
+                    gridCont.style.opacity = '0.4';
+                    gridCont.style.pointerEvents = 'none'; // 防止誤觸
+                }
             }
         }
 
@@ -1639,8 +1686,31 @@
                     if (currentEssayRound < 5) {
                         document.getElementById('next-essay-btn').classList.remove('hidden');
                     } else {
+                        // 👉 修正 1：5 關全部完成後，統一結算總分與上傳 (計時器已在找字完成時停止)
                         setTimeout(() => {
                             document.getElementById('fill-blank-modal').classList.remove('show');
+                            
+                            // 👉 新增：消除跳動標示與按鈕閃爍，並將棋盤恢復明亮
+                            const arrow = document.getElementById('guide-arrow-el');
+                            if (arrow) arrow.remove();
+                            
+                            const essayBtn = document.getElementById('essay-btn-container');
+                            if (essayBtn) {
+                                const btn = essayBtn.querySelector('.btn');
+                                if (btn) {
+                                    btn.classList.remove('animate-pulse');
+                                    // 👉 新增：將短文測驗按鈕設為停用(灰階)且不可點擊，並改變文字
+                                    btn.disabled = true;
+                                    btn.innerHTML = '<i class="fas fa-check-circle"></i> 測驗已完成';
+                                }
+                            }
+                            
+                            const gridCont = document.getElementById('grid-container');
+                            if (gridCont) {
+                                gridCont.style.opacity = '1';
+                                gridCont.style.pointerEvents = 'auto';
+                            }
+                            
                             showGameOverModal(score, timeElapsed);
                         }, 1500);
                     }
@@ -1668,6 +1738,11 @@
         }
 
         function showGameOverModal(finalScore, finalTime) {
+            // 👉 修正 1：將本地最高分紀錄移至最終結算時統一處理
+            if (!lessonRecords[currentLessonName] || finalScore > lessonRecords[currentLessonName].score) {
+                lessonRecords[currentLessonName] = { score: finalScore, time: finalTime };
+            }
+
             const modal = document.getElementById('game-over-modal');
             document.getElementById('final-score').innerText = finalScore;
             document.getElementById('final-time').innerText = formatTime(finalTime);
