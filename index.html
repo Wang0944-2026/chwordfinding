@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>國語找字遊戲 v4.4</title>
+    <title>國語找字遊戲 v4.5</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -125,6 +125,15 @@
         .btn-quiz { background: var(--btn-green); box-shadow: 0 4px 0 #9DB099; }
         .btn-quiz:hover { background: var(--btn-green-hover); }
         
+        /* 👉 新增：登入與排行榜專用樣式 */
+        .login-input { width: 100%; padding: 15px; border: 3px solid var(--panel-border); border-radius: 15px; font-size: 1.25rem; font-weight: bold; text-align: center; color: var(--text-main); margin-bottom: 15px; outline: none; transition: 0.3s; }
+        .login-input:focus { border-color: var(--btn-blue); box-shadow: 0 0 0 4px rgba(168, 184, 194, 0.3); }
+        .rank-tab { flex: 1; padding: 10px; font-weight: bold; cursor: pointer; border-bottom: 3px solid transparent; color: var(--text-light); transition: 0.3s; }
+        .rank-tab.active { border-bottom-color: var(--btn-orange); color: var(--btn-orange); }
+        .rank-row { display: flex; justify-content: space-between; padding: 12px 15px; border-bottom: 1px dashed var(--panel-border); align-items: center; }
+        .rank-row:nth-child(even) { background-color: var(--cell-bg); }
+        .rank-badge { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900; color: white; font-size: 0.9rem; }
+        
         /* 👉 新增：按鈕震動與警示狀態 */
         .btn-shake { animation: shake 0.4s !important; background-color: #E74C3C !important; box-shadow: 0 4px 0 #C0392B !important; color: white !important; }
 
@@ -193,7 +202,7 @@
 </head>
 <body>
 
-    <div class="footer-version">大榮老師製作 © 2026 | Version 4.4 (v4.4)</div>
+    <div class="footer-version">大榮老師製作 © 2026 | Version 4.5 (v4.5)</div>
 
     <div id="init-loader">
         <i class="fas fa-circle-notch fa-spin text-5xl mb-4" style="color: var(--btn-blue)"></i>
@@ -204,13 +213,19 @@
     <canvas id="fireworks"></canvas>
 
     <!-- 大廳 -->
-    <div id="lobby-container">
+    <div id="lobby-container" style="display: none;">
         <div class="lobby-panel">
             <div class="inline-block p-4 rounded-full bg-white mb-4 shadow-sm border-2 border-gray-100">
                 <i class="fas fa-leaf text-5xl" style="color: var(--btn-green)"></i>
             </div>
             <h1 class="text-4xl font-black mb-2 tracking-wider">語詞探索遊戲</h1>
-            <p class="font-bold opacity-60 mb-8">請選擇你要挑戰的單元</p>
+            <p class="font-bold opacity-60 mb-6">歡迎，<span id="display-username" class="text-[var(--btn-blue)]"></span>！請選擇挑戰單元</p>
+            
+            <!-- 👉 新增：大廳的排行榜按鈕 -->
+            <button onclick="openLeaderboardModal()" class="btn mb-8 w-full max-w-xs mx-auto" style="background: var(--btn-orange); box-shadow: 0 4px 0 var(--btn-orange-hover); font-size: 1.15rem; padding: 12px;">
+                <i class="fas fa-trophy text-yellow-100"></i> 全網排行榜
+            </button>
+            
             <div id="lesson-buttons" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
         </div>
     </div>
@@ -311,6 +326,45 @@
                     <span class="text-xl font-bold text-blue-500" id="final-time">00:00</span>
                 </div>
             </div>
+            <!-- 👉 新增：提示成績已上傳 -->
+            <div id="upload-status" class="text-sm font-bold text-gray-400 mt-2"><i class="fas fa-spinner fa-spin"></i> 正在將成績上傳至雲端排行榜...</div>
+        </div>
+    </div>
+
+    <!-- 👉 新增：登入 Modal -->
+    <div id="login-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 400px; padding: 40px 30px;">
+            <i class="fas fa-user-astronaut text-6xl mb-6 text-gray-400"></i>
+            <h2 class="text-2xl font-black mb-2">請輸入座號與姓名</h2>
+            <p class="text-sm font-bold text-gray-400 mb-6">格式範例：05洪天才 (兩碼座號+中文姓名)</p>
+            
+            <input type="text" id="username-input" class="login-input" placeholder="例如：05洪天才" autocomplete="off">
+            <div id="login-error" class="text-red-500 font-bold text-sm mb-4 h-5 hidden">格式錯誤，請確認包含座號與姓名</div>
+            
+            <button onclick="handleLogin()" class="btn w-full text-xl py-3" style="background: var(--btn-blue); box-shadow: 0 4px 0 var(--btn-blue-hover);">
+                <i class="fas fa-sign-in-alt"></i> 進入遊戲
+            </button>
+        </div>
+    </div>
+
+    <!-- 👉 新增：排行榜 Modal -->
+    <div id="leaderboard-modal" class="modal-overlay">
+        <div class="modal-content" style="width: 500px; padding: 25px; max-height: 85vh;">
+            <div class="modal-header-bar" style="background: var(--btn-orange);"></div>
+            <button onclick="document.getElementById('leaderboard-modal').classList.remove('show')" class="close-btn"><i class="fas fa-times"></i></button>
+            
+            <h2 class="text-2xl font-black mb-4"><i class="fas fa-trophy text-yellow-500"></i> 全網英雄榜</h2>
+            
+            <select id="leaderboard-unit-select" class="login-input !text-lg !p-2 mb-4" onchange="renderLeaderboard()"></select>
+            
+            <div class="flex w-full border-b-2 border-gray-200 mb-2">
+                <div id="tab-score" class="rank-tab active" onclick="setRankSort('score')">依分數排序 (高到低)</div>
+                <div id="tab-time" class="rank-tab" onclick="setRankSort('time')">依時間排序 (快到慢)</div>
+            </div>
+            
+            <div id="leaderboard-list" class="w-full flex-1 overflow-y-auto text-left min-h-[300px]">
+                <!-- 排名資料動態插入 -->
+            </div>
         </div>
     </div>
 
@@ -393,9 +447,12 @@
         let selectedTouchWord = null; 
         let isEndGameTriggered = false; 
         
-        // 👉 新增：控制 5 篇短文測驗的狀態變數
+        // 👉 新增：控制 5 篇短文測驗的狀態變數與全域資料
         let currentEssayRound = 1;
         let currentEssayList = [];
+        let currentUser = ""; // 儲存登入的使用者名稱
+        let globalLeaderboard = []; // 儲存從後端抓取的排行榜資料
+        let currentRankSort = 'score'; // 'score' 或 'time'
 
         // 👉 將30色莫蘭迪色盤「強制交錯」排列，確保相鄰色系對比強烈，絕不撞色
         const earthTonePalette = [
@@ -463,6 +520,7 @@
                 
                 allWordData = processSheetData(data.words || data);
                 cachedStories = data.stories || {};
+                globalLeaderboard = data.leaderboard || []; // 👉 接收排行榜資料
                 
                 if (allWordData.length === 0) throw new Error("讀取到的題庫為空");
             } catch (err) {
@@ -479,8 +537,164 @@
             
             await new Promise(resolve => setTimeout(resolve, 500));
             document.getElementById('init-loader').style.display = 'none';
-            renderLobby();
+            
+            // 👉 修正：資料讀取完畢後，先顯示登入畫面，而非直接進大廳
+            document.getElementById('login-modal').classList.add('show');
         };
+
+        // 👉 新增：處理登入邏輯
+        function handleLogin() {
+            const input = document.getElementById('username-input').value.trim();
+            const errorMsg = document.getElementById('login-error');
+            
+            // 驗證格式：兩位數字開頭 + 至少一個中文字結尾
+            const regex = /^\d{2}[\u4e00-\u9fa5]+$/;
+            
+            if (regex.test(input)) {
+                currentUser = input;
+                document.getElementById('display-username').innerText = currentUser;
+                document.getElementById('login-modal').classList.remove('show');
+                errorMsg.classList.add('hidden');
+                renderLobby();
+            } else {
+                const btn = document.querySelector('#login-modal .btn');
+                btn.classList.remove('btn-shake');
+                void btn.offsetWidth;
+                btn.classList.add('btn-shake');
+                errorMsg.classList.remove('hidden');
+                setTimeout(() => btn.classList.remove('btn-shake'), 400);
+            }
+        }
+
+        // 👉 新增：排行榜相關邏輯
+        function openLeaderboardModal() {
+            const select = document.getElementById('leaderboard-unit-select');
+            select.innerHTML = '<option value="all">🏆 綜合全單元排行 🏆</option>';
+            const uniqueUnits = [...new Set(allWordData.map(item => item.unit))];
+            uniqueUnits.forEach(unit => {
+                select.innerHTML += `<option value="${unit}">${unit}</option>`;
+            });
+            renderLeaderboard();
+            document.getElementById('leaderboard-modal').classList.add('show');
+        }
+
+        function setRankSort(sortType) {
+            currentRankSort = sortType;
+            document.getElementById('tab-score').classList.toggle('active', sortType === 'score');
+            document.getElementById('tab-time').classList.toggle('active', sortType === 'time');
+            renderLeaderboard();
+        }
+
+        function renderLeaderboard() {
+            const listEl = document.getElementById('leaderboard-list');
+            const unitFilter = document.getElementById('leaderboard-unit-select').value;
+            
+            // 過濾單元
+            let filtered = globalLeaderboard;
+            if (unitFilter !== 'all') {
+                filtered = globalLeaderboard.filter(item => item.unit === unitFilter);
+            }
+            
+            // 排序邏輯
+            filtered.sort((a, b) => {
+                if (currentRankSort === 'score') {
+                    if (b.score !== a.score) return b.score - a.score; // 分數高優先
+                    return a.time - b.time; // 分數相同，時間快優先
+                } else {
+                    if (a.time !== b.time) return a.time - b.time; // 時間快優先
+                    return b.score - a.score; // 時間相同，分數高優先
+                }
+            });
+
+            listEl.innerHTML = '';
+            if (filtered.length === 0) {
+                listEl.innerHTML = `<div class="text-center text-gray-400 mt-10 font-bold"><i class="fas fa-ghost text-4xl mb-2"></i><br>目前還沒有人挑戰這個單元喔！</div>`;
+                return;
+            }
+
+            filtered.forEach((item, index) => {
+                let badgeColor = '#9B9895'; // 預設灰
+                if (index === 0) badgeColor = '#F1C40F'; // 金
+                else if (index === 1) badgeColor = '#E67E22'; // 銀
+                else if (index === 2) badgeColor = '#D35400'; // 銅
+                
+                listEl.innerHTML += `
+                    <div class="rank-row">
+                        <div class="flex items-center gap-3">
+                            <div class="rank-badge" style="background: ${badgeColor};">${index + 1}</div>
+                            <div>
+                                <div class="font-black text-gray-700">${item.username}</div>
+                                ${unitFilter === 'all' ? `<div class="text-xs text-gray-400 font-bold">${item.unit}</div>` : ''}
+                            </div>
+                        </div>
+                        <div class="text-right font-bold flex flex-col items-end">
+                            <span class="text-orange-500"><i class="fas fa-star text-xs"></i> ${item.score}</span>
+                            <span class="text-blue-500 text-sm"><i class="fas fa-clock text-xs"></i> ${formatTime(item.time)}</span>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // 👉 新增：擷取裝置與瀏覽器資訊
+        function getDeviceBrowserInfo() {
+            const ua = navigator.userAgent;
+            let browser = "其他瀏覽器";
+            let device = "桌上型電腦";
+            
+            if (ua.match(/Edg/i)) browser = "Edge";
+            else if (ua.match(/Chrome/i)) browser = "Chrome";
+            else if (ua.match(/Safari/i)) browser = "Safari";
+            else if (ua.match(/Firefox/i)) browser = "Firefox";
+
+            if (ua.match(/iPhone/i)) device = "iPhone";
+            else if (ua.match(/iPad/i)) device = "iPad";
+            else if (ua.match(/Android/i)) device = "Android 設備";
+            else if (ua.match(/Macintosh/i)) device = "Macintosh (Mac)";
+            else if (ua.match(/Windows/i)) device = "Windows 電腦";
+
+            return `${device} - ${browser}`;
+        }
+
+        // 👉 新增：上傳成績到 GAS
+        async function submitScoreToServer(finalScore, finalTime) {
+            const now = new Date();
+            const timestamp = now.getFullYear() + '/' + 
+                              String(now.getMonth()+1).padStart(2,'0') + '/' + 
+                              String(now.getDate()).padStart(2,'0') + ' ' + 
+                              String(now.getHours()).padStart(2,'0') + ':' + 
+                              String(now.getMinutes()).padStart(2,'0') + ':' + 
+                              String(now.getSeconds()).padStart(2,'0');
+
+            const payload = {
+                action: "saveScore",
+                unitName: currentLessonName,
+                username: currentUser,
+                score: finalScore,
+                time: finalTime,
+                timestamp: timestamp,
+                device: getDeviceBrowserInfo()
+            };
+
+            try {
+                const response = await fetch(GAS_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (response.ok) {
+                    document.getElementById('upload-status').innerHTML = '<i class="fas fa-check-circle text-green-500"></i> 成績已成功上傳！';
+                    // 本地直接推入陣列，讓學生馬上在排行榜看到自己
+                    globalLeaderboard.push({ unit: currentLessonName, username: currentUser, time: finalTime, score: finalScore });
+                } else {
+                    throw new Error('Upload failed');
+                }
+            } catch (e) {
+                document.getElementById('upload-status').innerHTML = '<i class="fas fa-exclamation-triangle text-red-500"></i> 上傳失敗，請檢查網路。';
+                console.error("成績上傳失敗:", e);
+            }
+        }
 
         function processSheetData(data) {
             let processed = [];
@@ -1457,6 +1671,11 @@
             const modal = document.getElementById('game-over-modal');
             document.getElementById('final-score').innerText = finalScore;
             document.getElementById('final-time').innerText = formatTime(finalTime);
+            
+            // 👉 新增：過關時觸發成績上傳
+            document.getElementById('upload-status').innerHTML = '<i class="fas fa-spinner fa-spin text-blue-400"></i> 正在將成績上傳至雲端排行榜...';
+            submitScoreToServer(finalScore, finalTime);
+            
             modal.classList.add('show');
             showWinEffect();
         }
