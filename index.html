@@ -753,7 +753,8 @@
                 score: finalScore,
                 time: finalTime,
                 timestamp: timestamp,
-                device: getDeviceBrowserInfo()
+                device: getDeviceBrowserInfo(),
+                updateType: isSilent ? "append" : "updateLast" // 👉 新增：通知後端這是一局新遊戲，還是延續更新
             };
 
             let uploadSuccess = false;
@@ -1296,6 +1297,9 @@
             if (foundWords.length === currentLessonData.length && !isEndGameTriggered) {
                 isEndGameTriggered = true; 
                 
+                // 👉 修正 1：找字完成當下，立刻停止計時器！這樣時間就會永遠凍結在找字所花費的時間
+                stopTimer();
+                
                 // 找完字立刻上傳第一階段成績 (背景無聲上傳)
                 submitScoreToServer(score, timeElapsed, true); 
                 showToast('<i class="fas fa-cloud-upload-alt text-blue-400"></i> 找字完成！階段成績已自動紀錄。');
@@ -1771,7 +1775,7 @@
                     } else {
                         setTimeout(() => {
                             document.getElementById('fill-blank-modal').classList.remove('show');
-                            stopTimer(); // 測驗全破才停止計時
+                            // (這裡原本的 stopTimer 已經被移到 checkPhase1End 中了)
                             
                             const arrow = document.getElementById('guide-arrow-el');
                             if (arrow) arrow.remove();
