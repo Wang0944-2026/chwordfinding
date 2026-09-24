@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>國語找字遊戲 v6.1</title>
+    <title>國語找字遊戲 v6.2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -198,7 +198,7 @@
 </head>
 <body>
 
-    <div class="footer-version">大榮老師製作 © 2026 | Version 6.1 (v6.1)</div>
+    <div class="footer-version">大榮老師製作 © 2026 | Version 6.2 (v6.2)</div>
 
     <div id="init-loader">
         <i class="fas fa-circle-notch fa-spin text-5xl mb-4" style="color: var(--btn-blue)"></i>
@@ -340,6 +340,7 @@
     <!-- 登入 Modal -->
     <div id="login-modal" class="modal-overlay">
         <div class="modal-content" style="width: min(calc(100vw - 40px), 400px); padding: 35px 20px; overflow-x: hidden; box-sizing: border-box;">
+            <button onclick="closeLoginModal()" class="close-btn"><i class="fas fa-times"></i></button>
             <i class="fas fa-user-astronaut text-5xl md:text-6xl mb-4 md:mb-6 text-gray-400"></i>
             <h2 class="text-xl md:text-2xl font-black mb-2">請輸入登入資訊</h2>
             <p class="text-xs md:text-sm font-bold text-gray-400 mb-6 break-words whitespace-normal">格式範例：60105洪天才 (班級+兩碼座號+姓名)</p>
@@ -459,6 +460,11 @@
 
         let adminWhitelist = [];
         let isAdmin = false;
+
+        function closeLoginModal() {
+            document.getElementById('login-modal').classList.remove('show');
+            pendingUnit = null; // 清除剛才點擊的關卡記憶
+        }
 
         // 👉 新增：自動重試機制 (fetchWithRetry)，解決無法 100% 順暢連線的問題
         async function fetchWithRetry(url, options = {}, retries = 3) {
