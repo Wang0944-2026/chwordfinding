@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>國語找字遊戲 v6.5</title>
+    <title>國語找字遊戲 v6.7</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -199,7 +199,7 @@
 </head>
 <body>
 
-    <div class="footer-version">大榮老師製作 © 2026 | Version 6.5 (v6.5)</div>
+    <div class="footer-version">大榮老師製作 © 2026 | Version 6.7 (v6.7)</div>
 
     <div id="init-loader">
         <i class="fas fa-circle-notch fa-spin text-5xl mb-4" style="color: var(--btn-blue)"></i>
@@ -477,11 +477,13 @@
         }
 
         // 👉 優化：加入 Timeout 超時機制，避免遇到一直轉圈圈死當的問題
-        async function fetchWithRetry(url, options = {}, retries = 3, timeout = 12000) {
+        async function fetchWithRetry(url, options = {}, retries = 3, timeout = 25000) {
             for (let i = 0; i < retries; i++) {
                 try {
                     const controller = new AbortController();
-                    const id = setTimeout(() => controller.abort(), timeout);
+                    const id = setTimeout(() => {
+                        try { controller.abort(new Error("連線逾時，伺服器無回應")); } catch(e) { controller.abort(); }
+                    }, timeout);
                     
                     const response = await fetch(url, { ...options, signal: controller.signal });
                     clearTimeout(id);
@@ -599,7 +601,7 @@
                 const response = await fetchWithRetry(fetchUrl, {
                     method: 'GET',
                     redirect: 'follow'
-                }, 3, 10000); // 大廳清單 10 秒內需回應
+                }, 3, 25000); // 增加超時寬限期至 25 秒
                 
                 const textData = await response.text();
                 let data;
@@ -973,9 +975,9 @@
             startProgress();
             
             try {
-                // 套用 fetchWithRetry 進行自動重試，單課載入給予 15 秒寬限期
+                // 套用 fetchWithRetry 進行自動重試，單課載入給予寬限期
                 const fetchUrl = GAS_API_URL + (GAS_API_URL.includes('?') ? '&' : '?') + `action=getUnit&unitName=${encodeURIComponent(unitName)}&t=` + new Date().getTime();
-                const response = await fetchWithRetry(fetchUrl, { method: 'GET', redirect: 'follow' }, 3, 15000);
+                const response = await fetchWithRetry(fetchUrl, { method: 'GET', redirect: 'follow' }, 3, 25000);
                 
                 const textData = await response.text();
                 const data = JSON.parse(textData);
@@ -1586,17 +1588,26 @@
 
             let hasAnyMatch = false;
             let matchCount = 0;
+            let placeholders = {}; // 👉 新增：使用佔位符機制避免長詞包短詞造成的 HTML 標籤破裂
 
             for (let w of sortedWords) {
                 if (aiText.includes(w)) {
                     hasAnyMatch = true;
                     if (matchCount < 7) {
-                        let regex = new RegExp(w, 'g');
-                        aiText = aiText.replace(regex, `<span class="dropzone" data-answer="${w}"></span>`);
+                        let ph = `__PH_${matchCount}__`;
+                        // 移除 Regex 的 'g' 標籤，僅替換文章中「第一次」出現的該語詞。
+                        // 這能解決同一個詞挖了兩個洞，底下選項卻只有一個導致無法通關的 Bug！
+                        aiText = aiText.replace(w, ph);
+                        placeholders[ph] = `<span class="dropzone" data-answer="${w}"></span>`;
                         wordsToBank.push(w);
                         matchCount++;
                     }
                 }
+            }
+
+            // 👉 將佔位符還原為真正的 HTML span 標籤
+            for (let ph in placeholders) {
+                aiText = aiText.replace(ph, placeholders[ph]);
             }
 
             if (!hasAnyMatch) {
