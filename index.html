@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>國語找字遊戲 v6.8</title>
+    <title>國語找字遊戲 v6.9</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -60,7 +60,7 @@
         .footer-version { position: fixed; bottom: 10px; right: 15px; font-size: 0.85rem; color: var(--text-light); z-index: 9999; pointer-events: none; font-weight: bold; }
 
         #lobby-container { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; overflow-y: auto; }
-        .lobby-panel { background: var(--panel-bg); padding: 40px; border-radius: 30px; box-shadow: 0 15px 35px rgba(105, 101, 97, 0.08); max-width: 800px; width: 100%; text-align: center; border-top: 8px solid var(--grid-border); }
+        .lobby-panel { background: var(--panel-bg); padding: 40px; border-radius: 30px; box-shadow: 0 15px 35px rgba(105, 101, 97, 0.08); max-width: 1200px; width: 100%; text-align: center; border-top: 8px solid var(--grid-border); }
         .lesson-btn { background: var(--lobby-btn-bg); color: var(--text-main); border: 3px solid var(--lobby-btn-border); border-radius: 20px; padding: 20px; font-size: 1.25rem; font-weight: bold; transition: all 0.2s ease; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 10px; box-shadow: 0 6px 0 var(--lobby-btn-border); }
         .lesson-btn:hover { background: var(--lobby-btn-hover); transform: translateY(-2px); box-shadow: 0 8px 0 var(--lobby-btn-border); }
         .lesson-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--lobby-btn-border); }
@@ -199,7 +199,7 @@
 </head>
 <body>
 
-    <div class="footer-version">大榮老師製作 © 2026 | Version 6.8 (v6.8)</div>
+    <div class="footer-version">大榮老師製作 © 2026 | Version 6.9 (v6.9)</div>
 
     <div id="init-loader">
         <i class="fas fa-circle-notch fa-spin text-5xl mb-4" style="color: var(--btn-blue)"></i>
@@ -230,7 +230,7 @@
                 <i class="fas fa-trophy text-yellow-100"></i> 全網排行榜
             </button>
             
-            <div id="lesson-buttons" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            <div id="lesson-buttons" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
         </div>
     </div>
 
