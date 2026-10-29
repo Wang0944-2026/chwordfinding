@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>國語找字遊戲 v6.9</title>
+    <title>國語找字遊戲 v7.2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -127,8 +127,9 @@
         .login-input:focus { border-color: var(--btn-blue); box-shadow: 0 0 0 4px rgba(168, 184, 194, 0.3); }
         .rank-tab { flex: 1; padding: 10px; font-weight: bold; cursor: pointer; border-bottom: 3px solid transparent; color: var(--text-light); transition: 0.3s; }
         .rank-tab.active { border-bottom-color: var(--btn-orange); color: var(--btn-orange); }
-        .rank-row { display: flex; justify-content: space-between; padding: 12px 15px; border-bottom: 1px dashed var(--panel-border); align-items: center; }
-        .rank-row:nth-child(even) { background-color: var(--cell-bg); }
+        .rank-row { display: flex; justify-content: space-between; padding: 12px 15px; border-bottom: 1px dashed var(--panel-border); align-items: center; transition: background-color 0.2s; }
+        .rank-row:nth-child(even):not(.below-threshold) { background-color: var(--cell-bg); }
+        .rank-row.below-threshold { background-color: #FFF5F5 !important; border-left: 5px solid #E74C3C; }
         .rank-badge { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900; color: white; font-size: 0.9rem; }
         
         .btn-shake { animation: shake 0.4s !important; background-color: #E74C3C !important; box-shadow: 0 4px 0 #C0392B !important; color: white !important; }
@@ -199,7 +200,7 @@
 </head>
 <body>
 
-    <div class="footer-version">大榮老師製作 © 2026 | Version 6.9 (v6.9)</div>
+    <div class="footer-version">大榮老師製作 © 2026 | Version 7.2 (v7.2)</div>
 
     <div id="init-loader">
         <i class="fas fa-circle-notch fa-spin text-5xl mb-4" style="color: var(--btn-blue)"></i>
@@ -375,6 +376,8 @@
                 <div id="tab-score" class="rank-tab active" onclick="setRankSort('score')">依分數排序 (高到低)</div>
                 <div id="tab-time" class="rank-tab" onclick="setRankSort('time')">依時間排序 (快到慢)</div>
             </div>
+            
+            <div id="leaderboard-threshold-info" class="w-full text-xs font-bold text-gray-500 bg-gray-100 px-3 py-2 rounded-lg mb-2 flex justify-between items-center"></div>
             
             <div id="leaderboard-list" class="w-full flex-1 overflow-y-auto text-left min-h-[300px]"></div>
         </div>
@@ -640,7 +643,7 @@
                     loaderMsg.style.color = "#E74C3C";
                 }
                 allWordData = getFallbackData();
-                unitList = [{ name: "展示單元", wordCount: 3 }];
+                unitList = [{ name: "展示單元", wordCount: 3, maxScore: 1050 }];
                 await new Promise(resolve => setTimeout(resolve, 800));
             }
             
@@ -711,10 +714,39 @@
             renderLeaderboard();
         }
 
+        // 👉 新增：計算或取得單元的滿分 (找字得分 + 單字測驗 + 5關短文填空)
+        function getUnitMaxScore(unitName) {
+            const unitItem = unitList.find(u => u.name === unitName);
+            if (unitItem && unitItem.maxScore) return unitItem.maxScore;
+            
+            if (currentLessonName === unitName && currentLessonData.length > 0) {
+                const totalChars = currentLessonData.reduce((sum, item) => sum + item.word.length, 0);
+                const count = currentLessonData.length;
+                return (totalChars * 50) + (count * 50) + (Math.min(7, count) * 20 * 5);
+            }
+            
+            if (unitItem && unitItem.wordCount) {
+                const count = unitItem.wordCount;
+                return (count * 2 * 50) + (count * 50) + (Math.min(7, count) * 20 * 5);
+            }
+            return 0;
+        }
+
         function renderLeaderboard() {
             const listEl = document.getElementById('leaderboard-list');
+            const infoEl = document.getElementById('leaderboard-threshold-info');
             const unitFilter = document.getElementById('leaderboard-unit-select').value;
             
+            if ( infoEl ) {
+                if (unitFilter === 'all') {
+                    infoEl.innerHTML = `<span><i class="fas fa-info-circle text-blue-400"></i> 依各單元總分計算</span><span class="text-red-500"><i class="fas fa-square"></i> 紅底標記：未達該單元總分 90%</span>`;
+                } else {
+                    const maxS = getUnitMaxScore(unitFilter);
+                    const passS = Math.ceil(maxS * 0.90);
+                    infoEl.innerHTML = `<span>單元總分：<b>${maxS}</b> 分 (90%達標：<b>${passS}</b> 分)</span><span class="text-red-500"><i class="fas fa-square"></i> 未達 90%</span>`;
+                }
+            }
+
             let filtered = globalLeaderboard;
             if (unitFilter !== 'all') {
                 filtered = globalLeaderboard.filter(item => item.unit === unitFilter);
@@ -765,17 +797,28 @@
                 else if (index === 1) badgeColor = '#E67E22'; 
                 else if (index === 2) badgeColor = '#D35400'; 
                 
+                // 👉 計算 90% 門檻，判斷是否低於標準
+                const maxScore = getUnitMaxScore(item.unit);
+                const thresholdScore = Math.ceil(maxScore * 0.90);
+                const isBelowThreshold = maxScore > 0 && item.score < thresholdScore;
+                
+                const rowClass = isBelowThreshold ? 'rank-row below-threshold' : 'rank-row';
+                const scoreColorClass = isBelowThreshold ? 'text-red-600' : 'text-orange-500';
+                const warningBadge = isBelowThreshold ? `<span class="text-[0.7rem] bg-red-100 text-red-600 px-2 py-0.5 rounded-full ml-2 border border-red-200 font-bold">未達90%</span>` : '';
+
                 listEl.innerHTML += `
-                    <div class="rank-row">
+                    <div class="${rowClass}">
                         <div class="flex items-center gap-3">
                             <div class="rank-badge" style="background: ${badgeColor};">${index + 1}</div>
                             <div>
-                                <div class="font-black text-gray-700">${item.username}</div>
-                                ${unitFilter === 'all' ? `<div class="text-xs text-gray-400 font-bold">${item.unit}</div>` : ''}
+                                <div class="font-black ${isBelowThreshold ? 'text-red-700' : 'text-gray-700'} flex items-center">
+                                    ${item.username} ${warningBadge}
+                                </div>
+                                ${unitFilter === 'all' ? `<div class="text-xs text-gray-400 font-bold">${item.unit} (90%門檻: ${thresholdScore}分)</div>` : ''}
                             </div>
                         </div>
                         <div class="text-right font-bold flex flex-col items-end">
-                            <span class="text-orange-500"><i class="fas fa-star text-xs"></i> ${item.score}</span>
+                            <span class="${scoreColorClass}"><i class="fas fa-star text-xs"></i> ${item.score}</span>
                             <span class="text-blue-500 text-sm"><i class="fas fa-clock text-xs"></i> ${formatTime(item.time)}</span>
                         </div>
                     </div>
@@ -1020,7 +1063,7 @@
                     document.getElementById('game-container').style.display = 'flex'; 
                     initGame();
                 } else {
-                    alert("載入單元失敗：" + err.message + "\n請確認網路連線或稍後再試。");
+                    showToast("<i class='fas fa-exclamation-triangle text-red-400'></i> 載入單元失敗：" + err.message);
                 }
             }
         }
@@ -1984,9 +2027,8 @@
 
         // 👉 新增：重整閱讀測驗按鈕功能
         async function refreshEssay() {
-            if (!confirm("確定要重新抓取新的閱讀題嗎？這將會清除當前文章並呼叫 AI 重新產生。")) return;
             cachedStories[currentLessonName] = []; // 清空快取
-            showToast("<i class='fas fa-sync fa-spin'></i> 準備重新抓取...");
+            showToast("<i class='fas fa-sync fa-spin'></i> 正在重新抓取閱讀題...");
             startFillInTheBlankTest();
         }
 
