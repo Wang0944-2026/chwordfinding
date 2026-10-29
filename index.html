@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>國語找字遊戲 v7.2</title>
+    <title>國語找字遊戲 v7.4</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -125,7 +125,7 @@
         
         .login-input { width: 100%; padding: 15px; border: 3px solid var(--panel-border); border-radius: 15px; font-size: 1.25rem; font-weight: bold; text-align: center; color: var(--text-main); margin-bottom: 15px; outline: none; transition: 0.3s; box-sizing: border-box; }
         .login-input:focus { border-color: var(--btn-blue); box-shadow: 0 0 0 4px rgba(168, 184, 194, 0.3); }
-        .rank-tab { flex: 1; padding: 10px; font-weight: bold; cursor: pointer; border-bottom: 3px solid transparent; color: var(--text-light); transition: 0.3s; }
+        .rank-tab { flex: 1; padding: 10px 5px; font-weight: bold; cursor: pointer; border-bottom: 3px solid transparent; color: var(--text-light); transition: 0.3s; text-align: center; font-size: 0.95rem; }
         .rank-tab.active { border-bottom-color: var(--btn-orange); color: var(--btn-orange); }
         .rank-row { display: flex; justify-content: space-between; padding: 12px 15px; border-bottom: 1px dashed var(--panel-border); align-items: center; transition: background-color 0.2s; }
         .rank-row:nth-child(even):not(.below-threshold) { background-color: var(--cell-bg); }
@@ -200,7 +200,7 @@
 </head>
 <body>
 
-    <div class="footer-version">大榮老師製作 © 2026 | Version 7.2 (v7.2)</div>
+    <div class="footer-version">大榮老師製作 © 2026 | Version 7.4 (v7.4)</div>
 
     <div id="init-loader">
         <i class="fas fa-circle-notch fa-spin text-5xl mb-4" style="color: var(--btn-blue)"></i>
@@ -373,8 +373,13 @@
             <select id="leaderboard-unit-select" class="login-input !text-lg !p-2 mb-4" onchange="renderLeaderboard()"></select>
             
             <div class="flex w-full border-b-2 border-gray-200 mb-2">
-                <div id="tab-score" class="rank-tab active" onclick="setRankSort('score')">依分數排序 (高到低)</div>
-                <div id="tab-time" class="rank-tab" onclick="setRankSort('time')">依時間排序 (快到慢)</div>
+                <div id="tab-score" class="rank-tab active" onclick="setRankSort('score')">依分數排序</div>
+                <div id="tab-time" class="rank-tab" onclick="setRankSort('time')">依時間排序</div>
+                <div id="tab-incomplete" class="rank-tab" onclick="setRankSort('incomplete')">未完成名單</div>
+            </div>
+            
+            <div id="class-filter-container" class="hidden w-full mb-2">
+                <select id="leaderboard-class-select" class="login-input !text-[1rem] !p-2 !mb-0 bg-gray-50 text-gray-600" onchange="renderLeaderboard()"></select>
             </div>
             
             <div id="leaderboard-threshold-info" class="w-full text-xs font-bold text-gray-500 bg-gray-100 px-3 py-2 rounded-lg mb-2 flex justify-between items-center"></div>
@@ -470,6 +475,9 @@
 
         let adminWhitelist = [];
         let isAdmin = false;
+        
+        let uniqueClasses = [];
+        let studentsByClass = {};
         
         // 進度條相關變數
         let progressTimer = null;
@@ -627,6 +635,30 @@
                 studentWhitelist = data.whitelist || [];
                 adminWhitelist = data.adminList || []; // 取得開發者白名單
                 
+                // 解析班級資訊以供未完成名單使用
+                let classesSet = new Set();
+                studentsByClass = {};
+                studentWhitelist.forEach(user => {
+                    // 👉 修正：只要帳號開頭是 666 (測試帳號)，就直接略過不計入班級選單
+                    if (user.startsWith('666')) return;
+                    
+                    let match = user.match(/^(\d+)/);
+                    if (match) {
+                        let numStr = match[1];
+                        let classCode = numStr.length > 2 ? numStr.slice(0, -2) : numStr;
+                        classesSet.add(classCode);
+                        if (!studentsByClass[classCode]) studentsByClass[classCode] = [];
+                        studentsByClass[classCode].push(user);
+                    }
+                });
+                uniqueClasses = Array.from(classesSet).sort();
+                
+                const classSelect = document.getElementById('leaderboard-class-select');
+                if (classSelect && uniqueClasses.length > 1) {
+                    classSelect.innerHTML = '<option value="all">顯示所有班級</option>';
+                    uniqueClasses.forEach(c => classSelect.innerHTML += `<option value="${c}">${c} 班</option>`);
+                }
+
                 if (unitList.length === 0) throw new Error("讀取到的單元清單為空");
                 
                 completeProgress();
@@ -711,6 +743,7 @@
             currentRankSort = sortType;
             document.getElementById('tab-score').classList.toggle('active', sortType === 'score');
             document.getElementById('tab-time').classList.toggle('active', sortType === 'time');
+            document.getElementById('tab-incomplete').classList.toggle('active', sortType === 'incomplete');
             renderLeaderboard();
         }
 
@@ -736,6 +769,62 @@
             const listEl = document.getElementById('leaderboard-list');
             const infoEl = document.getElementById('leaderboard-threshold-info');
             const unitFilter = document.getElementById('leaderboard-unit-select').value;
+            const classFilterContainer = document.getElementById('class-filter-container');
+            
+            // 👉 新增：未完成名單邏輯
+            if (currentRankSort === 'incomplete') {
+                if (infoEl) infoEl.style.display = 'none';
+                
+                // 只有在多個班級且指定單元時，才顯示班級選單
+                if (uniqueClasses.length > 1 && unitFilter !== 'all') {
+                    classFilterContainer.classList.remove('hidden');
+                } else {
+                    classFilterContainer.classList.add('hidden');
+                }
+                
+                if (unitFilter === 'all') {
+                    listEl.innerHTML = `<div class="text-center text-gray-400 mt-10 font-bold"><i class="fas fa-exclamation-circle text-4xl mb-2"></i><br>請於上方選單指定「特定單元」<br>才能查看該單元的未完成名單喔！</div>`;
+                    return;
+                }
+                
+                listEl.innerHTML = '';
+                let finishedUsers = new Set(globalLeaderboard.filter(item => item.unit === unitFilter).map(item => item.username));
+                
+                let classSelectEl = document.getElementById('leaderboard-class-select');
+                let selectedClass = classSelectEl ? classSelectEl.value : 'all';
+                let hasIncomplete = false;
+                
+                let classesToProcess = (uniqueClasses.length > 1 && selectedClass !== 'all') ? [selectedClass] : uniqueClasses;
+                
+                classesToProcess.forEach(cls => {
+                    let incompleteStudents = (studentsByClass[cls] || []).filter(user => !finishedUsers.has(user));
+                    if (incompleteStudents.length > 0) {
+                        hasIncomplete = true;
+                        if (classesToProcess.length > 1) {
+                            listEl.innerHTML += `<div class="bg-gray-200 text-gray-600 font-bold px-3 py-1 mt-3 mb-1 rounded-md text-sm border-l-4 border-gray-400">${cls} 班 未完成名單</div>`;
+                        }
+                        incompleteStudents.forEach(user => {
+                            listEl.innerHTML += `
+                                <div class="rank-row bg-gray-50 opacity-90" style="border-left: 4px solid #BDC3C7;">
+                                    <div class="flex items-center gap-3">
+                                        <div class="rank-badge" style="background: #BDC3C7;"><i class="fas fa-user-times"></i></div>
+                                        <div class="font-black text-gray-500">${user}</div>
+                                    </div>
+                                    <div class="text-sm font-bold text-gray-400">未完成</div>
+                                </div>
+                            `;
+                        });
+                    }
+                });
+                
+                if (!hasIncomplete) {
+                    listEl.innerHTML = `<div class="text-center text-green-500 mt-10 font-bold"><i class="fas fa-check-circle text-4xl mb-2"></i><br>太棒了！所選班級的所有學生都已完成此單元！</div>`;
+                }
+                return;
+            } else {
+                if (infoEl) infoEl.style.display = 'flex';
+                if (classFilterContainer) classFilterContainer.classList.add('hidden');
+            }
             
             if ( infoEl ) {
                 if (unitFilter === 'all') {
