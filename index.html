@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>國語找字遊戲 v7.4</title>
+    <title>國語找字遊戲 v7.5</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -200,7 +200,7 @@
 </head>
 <body>
 
-    <div class="footer-version">大榮老師製作 © 2026 | Version 7.4 (v7.4)</div>
+    <div class="footer-version">大榮老師製作 © 2026 | Version 7.5 (v7.5)</div>
 
     <div id="init-loader">
         <i class="fas fa-circle-notch fa-spin text-5xl mb-4" style="color: var(--btn-blue)"></i>
@@ -1235,6 +1235,12 @@
 
             const essayBtnContainer = document.getElementById('essay-btn-container');
             essayBtnContainer.classList.add('hidden');
+            // 👉 修正：每次開局時，強制解除「閱讀測驗」按鈕的灰色鎖定狀態並還原文字
+            const essayInnerBtn = essayBtnContainer.querySelector('.btn');
+            if (essayInnerBtn) {
+                essayInnerBtn.disabled = false;
+                essayInnerBtn.innerHTML = '<i class="fas fa-book-open"></i> 閱讀測驗';
+            }
             const arrow = document.getElementById('guide-arrow-el');
             if (arrow) arrow.remove();
             document.getElementById('grid-container').style.opacity = '1';
@@ -2114,11 +2120,50 @@
             ];
         }
 
-        // 👉 新增：重整閱讀測驗按鈕功能
+        // 👉 修正：當「閱讀測驗」反灰或卡住時，向後端重新讀取題目並解除按鈕鎖定，不需重新遊戲
         async function refreshEssay() {
-            cachedStories[currentLessonName] = []; // 清空快取
-            showToast("<i class='fas fa-sync fa-spin'></i> 正在重新抓取閱讀題...");
-            startFillInTheBlankTest();
+            const refreshBtn = document.getElementById('refresh-essay-btn');
+            if (refreshBtn) refreshBtn.disabled = true;
+
+            // 1. 立即解除「閱讀測驗」按鈕的灰色鎖定狀態，確保學生可以點擊
+            const essayBtnContainer = document.getElementById('essay-btn-container');
+            if (essayBtnContainer) {
+                essayBtnContainer.classList.remove('hidden');
+                const btn = essayBtnContainer.querySelector('.btn');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.classList.add('animate-pulse');
+                    btn.innerHTML = '<i class="fas fa-book-open"></i> 閱讀測驗';
+                }
+            }
+
+            showToast("<i class='fas fa-sync fa-spin text-blue-400'></i> 正在從後端資料庫重新讀取題目...");
+
+            try {
+                // 2. 重新向後端資料庫請求該單元的最新題目與短文資料
+                const fetchUrl = GAS_API_URL + (GAS_API_URL.includes('?') ? '&' : '?') + `action=getUnit&unitName=${encodeURIComponent(currentLessonName)}&t=` + new Date().getTime();
+                const response = await fetchWithRetry(fetchUrl, { method: 'GET', redirect: 'follow' }, 3, 10000);
+                const textData = await response.text();
+                const data = JSON.parse(textData);
+
+                if (data.error) throw new Error(data.error);
+
+                // 更新題庫與快取短文，但保留學生目前的找字進度與分數
+                if (data.words) {
+                    currentLessonData = processSheetData(data.words, currentLessonName);
+                }
+                if (data.stories) {
+                    cachedStories = data.stories;
+                }
+
+                showToast("<i class='fas fa-check-circle text-green-400'></i> 題庫重新讀取成功！正在開啟測驗...");
+                startFillInTheBlankTest();
+            } catch (err) {
+                console.error("重整閱讀題失敗:", err);
+                showToast("<i class='fas fa-exclamation-triangle text-red-400'></i> 重新讀取失敗，請直接點擊「閱讀測驗」或再試一次！");
+            } finally {
+                if (refreshBtn) refreshBtn.disabled = false;
+            }
         }
 
         // 👉 新增：開發者一鍵找字功能
