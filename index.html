@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>國語找字遊戲 v7.5</title>
+    <title>國語找字遊戲 v7.6</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -200,7 +200,7 @@
 </head>
 <body>
 
-    <div class="footer-version">大榮老師製作 © 2026 | Version 7.5 (v7.5)</div>
+    <div class="footer-version">大榮老師製作 © 2026 | Version 7.6 (v7.6)</div>
 
     <div id="init-loader">
         <i class="fas fa-circle-notch fa-spin text-5xl mb-4" style="color: var(--btn-blue)"></i>
@@ -366,9 +366,12 @@
     <div id="leaderboard-modal" class="modal-overlay">
         <div class="modal-content" style="width: 500px; padding: 25px; max-height: 85vh;">
             <div class="modal-header-bar" style="background: var(--btn-orange);"></div>
-            <button onclick="document.getElementById('leaderboard-modal').classList.remove('show')" class="close-btn"><i class="fas fa-times"></i></button>
+            <button onclick="closeLeaderboardModal()" class="close-btn"><i class="fas fa-times"></i></button>
             
-            <h2 class="text-2xl font-black mb-4"><i class="fas fa-trophy text-yellow-500"></i> 全網英雄榜</h2>
+            <h2 class="text-2xl font-black mb-1"><i class="fas fa-trophy text-yellow-500"></i> 全網英雄榜</h2>
+            <div id="lb-sync-status" class="text-xs font-bold text-gray-400 mb-3 flex items-center justify-center gap-1.5">
+                <i class="fas fa-circle text-green-400 text-[8px] animate-pulse"></i> 與後端資料庫即時連動中
+            </div>
             
             <select id="leaderboard-unit-select" class="login-input !text-lg !p-2 mb-4" onchange="renderLeaderboard()"></select>
             
@@ -478,6 +481,10 @@
         
         let uniqueClasses = [];
         let studentsByClass = {};
+        
+        // 排行榜即時連動計時器與狀態鎖
+        let lbPollInterval = null;
+        let isSyncingLb = false;
         
         // 進度條相關變數
         let progressTimer = null;
@@ -731,12 +738,70 @@
 
         function openLeaderboardModal() {
             const select = document.getElementById('leaderboard-unit-select');
+            const prevValue = select.value;
             select.innerHTML = '<option value="all">🏆 綜合全單元排行 🏆</option>';
             unitList.forEach(item => {
                 select.innerHTML += `<option value="${item.name}">${item.name}</option>`;
             });
+            if (prevValue && Array.from(select.options).some(o => o.value === prevValue)) {
+                select.value = prevValue;
+            }
+            
             renderLeaderboard();
             document.getElementById('leaderboard-modal').classList.add('show');
+            
+            // 開啟時立即向後端檢查一次，並啟動每 5 秒自動背景連動檢查
+            syncLeaderboard(true);
+            clearInterval(lbPollInterval);
+            lbPollInterval = setInterval(() => syncLeaderboard(false), 5000);
+        }
+
+        function closeLeaderboardModal() {
+            document.getElementById('leaderboard-modal').classList.remove('show');
+            clearInterval(lbPollInterval);
+            lbPollInterval = null;
+        }
+
+        // 👉 新增：與後端資料庫即時比對排行榜資料，有差異才更新畫面
+        async function syncLeaderboard(showIndicator = false) {
+            if (isSyncingLb) return;
+            isSyncingLb = true;
+            const statusEl = document.getElementById('lb-sync-status');
+            if (showIndicator && statusEl) {
+                statusEl.innerHTML = '<i class="fas fa-sync fa-spin text-blue-400"></i> 正在檢查雲端最新成績...';
+            }
+
+            try {
+                const fetchUrl = GAS_API_URL + (GAS_API_URL.includes('?') ? '&' : '?') + 'action=getLeaderboard&t=' + new Date().getTime();
+                const response = await fetch(fetchUrl, { method: 'GET', redirect: 'follow' });
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.leaderboard) {
+                        // 比對新舊資料是否有差異
+                        const oldDataStr = JSON.stringify(globalLeaderboard);
+                        const newDataStr = JSON.stringify(data.leaderboard);
+                        
+                        if (oldDataStr !== newDataStr) {
+                            globalLeaderboard = data.leaderboard;
+                            if (document.getElementById('leaderboard-modal').classList.contains('show')) {
+                                renderLeaderboard();
+                            }
+                            if (statusEl) {
+                                statusEl.innerHTML = '<i class="fas fa-check-circle text-green-500"></i> 偵測到新成績，已即時更新！';
+                                setTimeout(() => {
+                                    if (statusEl) statusEl.innerHTML = '<i class="fas fa-circle text-green-400 text-[8px] animate-pulse"></i> 與後端資料庫即時連動中';
+                                }, 3000);
+                            }
+                        } else if (statusEl) {
+                            statusEl.innerHTML = '<i class="fas fa-circle text-green-400 text-[8px] animate-pulse"></i> 與後端資料庫即時連動中 (目前已是最新)';
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn("排行榜背景同步略過:", e);
+            } finally {
+                isSyncingLb = false;
+            }
         }
 
         function setRankSort(sortType) {
@@ -979,7 +1044,8 @@
                             const statusEl = document.getElementById('upload-status');
                             if (statusEl) statusEl.innerHTML = '<i class="fas fa-check-circle text-green-500"></i> 成績已成功上傳！';
                         }
-                        globalLeaderboard.push({ unit: currentLessonName, username: currentUser, time: finalTime, score: finalScore });
+                        // 上傳成功後，立即觸發背景同步以確保本地排行榜與後端完全一致
+                        syncLeaderboard(false);
                         uploadSuccess = true;
                         break; 
                     }
