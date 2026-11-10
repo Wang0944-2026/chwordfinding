@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>國語找字遊戲 v7.7</title>
+    <title>國語找字遊戲 v7.9</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -57,7 +57,8 @@
             flex-direction: column;
         }
 
-        .footer-version { position: fixed; bottom: 10px; right: 15px; font-size: 0.85rem; color: var(--text-light); z-index: 9999; pointer-events: none; font-weight: bold; }
+        /* 提升 z-index 至 10005，確保在 #init-loader (9999) 進度條畫面時也能顯示於最上層 */
+        .footer-version { position: fixed; bottom: 10px; right: 15px; font-size: 0.85rem; color: var(--text-light); z-index: 10005; pointer-events: none; font-weight: bold; }
 
         #lobby-container { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; overflow-y: auto; }
         .lobby-panel { background: var(--panel-bg); padding: 40px; border-radius: 30px; box-shadow: 0 15px 35px rgba(105, 101, 97, 0.08); max-width: 1200px; width: 100%; text-align: center; border-top: 8px solid var(--grid-border); }
@@ -220,14 +221,14 @@
 </head>
 <body>
 
-    <div class="footer-version">大榮老師製作 © 2026 | Version 7.7 (v7.7)</div>
+    <div class="footer-version">大榮老師製作 © 2026 | Version 7.9 (v7.9)</div>
 
     <div id="init-loader">
         <i class="fas fa-circle-notch fa-spin text-5xl mb-4" style="color: var(--btn-blue)"></i>
         <h2 class="text-2xl font-bold" id="loader-title">準備進入探索世界...</h2>
         <p class="mt-2 opacity-70" id="loader-msg">正在載入清單</p>
         
-        <!-- 新增：視覺化進度條 -->
+        <!-- 視覺化進度條 -->
         <div id="progress-container" class="hidden w-64 md:w-80 h-4 bg-gray-200 rounded-full mt-6 overflow-hidden border-2 border-gray-300 shadow-inner relative">
             <div id="loader-progress-bar" class="h-full rounded-full transition-all duration-300 ease-out w-0 relative overflow-hidden" style="background: var(--btn-blue);">
                 <div class="absolute inset-0 bg-white/20" style="background-image: linear-gradient(45deg,rgba(255,255,255,.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.15) 75%,transparent 75%,transparent); background-size: 1rem 1rem; animation: progress-stripes 1s linear infinite;"></div>
@@ -420,7 +421,7 @@
             <div id="fb-loading" class="w-full text-center py-10 flex flex-col items-center justify-center min-h-[300px]">
                 <i class="fas fa-pen-fancy text-5xl mb-4 text-purple-400 animate-pulse"></i>
                 <p class="text-xl font-bold text-gray-600">正在準備專屬短文測驗<span class="loading-dots"></span></p>
-                <p class="text-sm text-gray-400 mt-2">尋找快取文章或呼叫 AI 中</p>
+                <p class="text-sm text-gray-400 mt-2">正在從題庫載入文章中</p>
             </div>
 
             <div id="fb-article-col" class="article-col hidden">
@@ -475,7 +476,6 @@
         let previewLine = null;
         let currentModalWord = null;
         let currentSentenceIdx = 0;
-        let colorIndex = 0; 
 
         let timerInterval = null;
         let timeElapsed = 0;
@@ -484,12 +484,11 @@
         let perfectWords = []; 
         
         let quizStatus = {}; 
-        let failedWords = []; 
         let selectedTouchWord = null; 
         let isEndGameTriggered = false; 
         
         let currentEssayRound = 1;
-        let maxEssayRounds = 5; // 👉 新增全域變數：紀錄當前的最大測驗關卡數
+        let maxEssayRounds = 5;
         let currentEssayList = [];
         let currentUser = ""; 
         let globalLeaderboard = []; 
@@ -511,10 +510,9 @@
 
         function closeLoginModal() {
             document.getElementById('login-modal').classList.remove('show');
-            pendingUnit = null; // 清除剛才點擊的關卡記憶
+            pendingUnit = null;
         }
 
-        // 👉 優化：將 Timeout 寬限期大幅縮短至 10 秒，一旦伺服器卡住能更快強制截斷並重試
         async function fetchWithRetry(url, options = {}, retries = 3, timeout = 10000) {
             for (let i = 0; i < retries; i++) {
                 try {
@@ -532,7 +530,6 @@
                     if (i === retries - 1) throw e; 
                     console.warn(`連線失敗 (可能為超時或網路不穩)，正在進行第 ${i + 1} 次重試...`, e);
                     
-                    // 更新載入畫面的提示文字，讓使用者有預期心理
                     const loaderMsg = document.getElementById('loader-msg');
                     if (loaderMsg) loaderMsg.innerText = `連線不穩，第 ${i + 1} 次重新連線中...`;
                     
@@ -541,28 +538,26 @@
             }
         }
 
-        // 👉 新增：控制載入動畫與進度條的函數
         function startProgress() {
             const pCont = document.getElementById('progress-container');
             const pBar = document.getElementById('loader-progress-bar');
             const pText = document.getElementById('loader-progress-text');
-            pCont.classList.remove('hidden');
-            pText.classList.remove('hidden');
-            pBar.style.backgroundColor = 'var(--btn-blue)';
+            if (pCont) pCont.classList.remove('hidden');
+            if (pText) pText.classList.remove('hidden');
+            if (pBar) pBar.style.backgroundColor = 'var(--btn-blue)';
             
             let progress = 0;
-            pBar.style.width = '0%';
-            pText.innerText = '0%';
+            if (pBar) pBar.style.width = '0%';
+            if (pText) pText.innerText = '0%';
             
             clearInterval(progressTimer);
             progressTimer = setInterval(() => {
-                // 利用漸近曲線，一開始快，後面慢 (讓使用者產生預期心理)
                 let increment = (95 - progress) * 0.08; 
                 if (increment < 0.2) increment = 0.2;
                 progress += increment;
                 if (progress > 95) progress = 95;
-                pBar.style.width = progress + '%';
-                pText.innerText = Math.floor(progress) + '%';
+                if (pBar) pBar.style.width = progress + '%';
+                if (pText) pText.innerText = Math.floor(progress) + '%';
             }, 200);
         }
 
@@ -577,7 +572,6 @@
             if (pText) pText.innerText = '100%';
         }
 
-        // 👉 顯示提示訊息 (Toast)
         function showToast(msg) {
             const existing = document.getElementById('game-toast');
             if (existing) existing.remove();
@@ -639,7 +633,6 @@
             startProgress();
             
             try {
-                // 第一階段極速載入 (套用 fetchWithRetry，將超時縮短至 10 秒)
                 const fetchUrl = GAS_API_URL + (GAS_API_URL.includes('?') ? '&' : '?') + 'action=init&t=' + new Date().getTime();
                 const response = await fetchWithRetry(fetchUrl, {
                     method: 'GET',
@@ -660,15 +653,12 @@
                 unitList = data.units || [];
                 globalLeaderboard = data.leaderboard || []; 
                 studentWhitelist = data.whitelist || [];
-                adminWhitelist = data.adminList || []; // 取得開發者白名單
+                adminWhitelist = data.adminList || [];
                 
-                // 解析班級資訊以供未完成名單使用
                 let classesSet = new Set();
                 studentsByClass = {};
                 studentWhitelist.forEach(user => {
-                    // 👉 修正：只要帳號開頭是 666 (測試帳號)，就直接略過不計入班級選單
                     if (user.startsWith('666')) return;
-                    
                     let match = user.match(/^(\d+)/);
                     if (match) {
                         let numStr = match[1];
@@ -689,13 +679,13 @@
                 if (unitList.length === 0) throw new Error("讀取到的單元清單為空");
                 
                 completeProgress();
-                await new Promise(resolve => setTimeout(resolve, 500)); // 停頓一下讓玩家看到 100%
+                await new Promise(resolve => setTimeout(resolve, 500));
             } catch (err) {
                 console.error("⛔ 大廳資料讀取失敗:", err);
                 clearInterval(progressTimer);
                 const loaderMsg = document.getElementById('loader-msg');
                 const pBar = document.getElementById('loader-progress-bar');
-                if (pBar) pBar.style.backgroundColor = '#E74C3C'; // 變紅色
+                if (pBar) pBar.style.backgroundColor = '#E74C3C';
                 
                 if (loaderMsg) {
                     loaderMsg.innerText = "連線異常，載入展示大廳中...";
@@ -732,7 +722,7 @@
             
             if (isValid) {
                 currentUser = rawInput;
-                isAdmin = adminWhitelist.includes(currentUser); // 檢查是否為開發者
+                isAdmin = adminWhitelist.includes(currentUser);
                 
                 if (isAdmin) {
                     document.getElementById('debug-panel').style.display = 'flex';
@@ -770,7 +760,6 @@
             renderLeaderboard();
             document.getElementById('leaderboard-modal').classList.add('show');
             
-            // 開啟時立即向後端檢查一次，並啟動每 5 秒自動背景連動檢查
             syncLeaderboard(true);
             clearInterval(lbPollInterval);
             lbPollInterval = setInterval(() => syncLeaderboard(false), 5000);
@@ -782,7 +771,6 @@
             lbPollInterval = null;
         }
 
-        // 👉 新增：與後端資料庫即時比對排行榜資料，有差異才更新畫面
         async function syncLeaderboard(showIndicator = false) {
             if (isSyncingLb) return;
             isSyncingLb = true;
@@ -797,7 +785,6 @@
                 if (response.ok) {
                     const data = await response.json();
                     if (data.leaderboard) {
-                        // 比對新舊資料是否有差異
                         const oldDataStr = JSON.stringify(globalLeaderboard);
                         const newDataStr = JSON.stringify(data.leaderboard);
                         
@@ -832,7 +819,6 @@
             renderLeaderboard();
         }
 
-        // 👉 新增：計算或取得單元的滿分 (找字得分 + 單字測驗 + 5關短文填空)
         function getUnitMaxScore(unitName) {
             const unitItem = unitList.find(u => u.name === unitName);
             if (unitItem && unitItem.maxScore) return unitItem.maxScore;
@@ -856,11 +842,9 @@
             const unitFilter = document.getElementById('leaderboard-unit-select').value;
             const classFilterContainer = document.getElementById('class-filter-container');
             
-            // 👉 新增：未完成名單邏輯
             if (currentRankSort === 'incomplete') {
                 if (infoEl) infoEl.style.display = 'none';
                 
-                // 只有在多個班級且指定單元時，才顯示班級選單
                 if (uniqueClasses.length > 1 && unitFilter !== 'all') {
                     classFilterContainer.classList.remove('hidden');
                 } else {
@@ -911,7 +895,7 @@
                 if (classFilterContainer) classFilterContainer.classList.add('hidden');
             }
             
-            if ( infoEl ) {
+            if (infoEl) {
                 if (unitFilter === 'all') {
                     infoEl.innerHTML = `<span><i class="fas fa-info-circle text-blue-400"></i> 依各單元總分計算</span><span class="text-red-500"><i class="fas fa-square"></i> 紅底標記：未達該單元總分 90%</span>`;
                 } else {
@@ -926,21 +910,17 @@
                 filtered = globalLeaderboard.filter(item => item.unit === unitFilter);
             }
             
-            // 👉 FIX 3: 依照分數或時間挑選每位學生在該單元的最佳成績
             let grouped = {};
             filtered.forEach(item => {
-                // 用 "單元_名字" 當作 Key，確保選「全部單元」時不會把不同單元的成績混在一起
                 let key = item.unit + "_" + item.username;
                 if (!grouped[key]) {
                     grouped[key] = item;
                 } else {
                     let best = grouped[key];
                     if (currentRankSort === 'score') {
-                        // 比分數 (分數相同則比時間短)
                         if (item.score > best.score) grouped[key] = item;
                         else if (item.score === best.score && item.time < best.time) grouped[key] = item;
                     } else {
-                        // 比時間 (時間相同則比分數高)
                         if (item.time < best.time) grouped[key] = item;
                         else if (item.time === best.time && item.score > best.score) grouped[key] = item;
                     }
@@ -971,7 +951,6 @@
                 else if (index === 1) badgeColor = '#E67E22'; 
                 else if (index === 2) badgeColor = '#D35400'; 
                 
-                // 👉 計算 90% 門檻，判斷是否低於標準
                 const maxScore = getUnitMaxScore(item.unit);
                 const thresholdScore = Math.ceil(maxScore * 0.90);
                 const isBelowThreshold = maxScore > 0 && item.score < thresholdScore;
@@ -1019,9 +998,7 @@
             return `${device} - ${browser}`;
         }
 
-        // 👉 FIX 1: 新增 isSilent 參數，以便在背景無聲上傳成績
         async function submitScoreToServer(finalScore, finalTime, isSilent = false) {
-            // 👉 開發者模式：攔截所有上傳動作，不寫入成績
             if (isAdmin) {
                 if (!isSilent) {
                     const statusEl = document.getElementById('upload-status');
@@ -1046,7 +1023,7 @@
                 time: finalTime,
                 timestamp: timestamp,
                 device: getDeviceBrowserInfo(),
-                updateType: isSilent ? "append" : "updateLast" // 👉 新增：通知後端這是一局新遊戲，還是延續更新
+                updateType: isSilent ? "append" : "updateLast"
             };
 
             let uploadSuccess = false;
@@ -1064,7 +1041,6 @@
                             const statusEl = document.getElementById('upload-status');
                             if (statusEl) statusEl.innerHTML = '<i class="fas fa-check-circle text-green-500"></i> 成績已成功上傳！';
                         }
-                        // 上傳成功後，立即觸發背景同步以確保本地排行榜與後端完全一致
                         syncLeaderboard(false);
                         uploadSuccess = true;
                         break; 
@@ -1131,8 +1107,11 @@
                 let opt3 = getVal(row, ['選項3', '選項三']) || (correctIdx === 2 ? clue : "錯誤的選項 C");
 
                 processed.push({
-                    unit: unitName, word: word, clue: clue, origin: getVal(row, ['典故']) || "尚無典故資料。",
-                    sentences: sentences, quiz: { question: question, options: [opt1, opt2, opt3], correctIndex: correctIdx }
+                    unit: unitName,
+                    word: word,
+                    clue: clue,
+                    sentences: sentences,
+                    quiz: { question: question, options: [opt1, opt2, opt3], correctIndex: correctIdx }
                 });
             });
             return processed;
@@ -1198,7 +1177,6 @@
             startProgress();
             
             try {
-                // 套用 fetchWithRetry 進行自動重試，將超時縮短至 10 秒
                 const fetchUrl = GAS_API_URL + (GAS_API_URL.includes('?') ? '&' : '?') + `action=getUnit&unitName=${encodeURIComponent(unitName)}&t=` + new Date().getTime();
                 const response = await fetchWithRetry(fetchUrl, { method: 'GET', redirect: 'follow' }, 3, 10000);
                 
@@ -1214,7 +1192,7 @@
                 if (currentLessonData.length === 0) throw new Error("此單元沒有設定語詞！");
                 
                 completeProgress();
-                await new Promise(resolve => setTimeout(resolve, 500)); // 展示 100%
+                await new Promise(resolve => setTimeout(resolve, 500));
                 
                 document.getElementById('game-title').innerText = unitName;
                 document.getElementById('lobby-container').style.display = 'none';
@@ -1227,7 +1205,7 @@
                 console.error("載入單元失敗:", err);
                 clearInterval(progressTimer);
                 const pBar = document.getElementById('loader-progress-bar');
-                if (pBar) pBar.style.backgroundColor = '#E74C3C'; // 變紅色
+                if (pBar) pBar.style.backgroundColor = '#E74C3C';
                 
                 loader.style.display = 'none';
                 if (allWordData.length > 0) {
@@ -1314,14 +1292,13 @@
             const extraChars = "的是了我不人在他有這一個上們來到時大地為子中你說生國年那就和要她出也得裡後自以會家可下而過天去能對小多然於心學麼起都把好太水作";
             const fillerChars = uniqueChars.join('') + extraChars;
 
-            placedWordsInfo = []; foundWords = []; perfectWords = []; quizStatus = {}; failedWords = []; 
-            isEndGameTriggered = false; score = 0; colorIndex = 0; 
+            placedWordsInfo = []; foundWords = []; perfectWords = []; quizStatus = {};
+            isEndGameTriggered = false; score = 0; 
             
-            document.getElementById('refresh-essay-btn').classList.add('hidden'); // 隱藏重整按鈕
+            document.getElementById('refresh-essay-btn').classList.add('hidden');
 
             const essayBtnContainer = document.getElementById('essay-btn-container');
             essayBtnContainer.classList.add('hidden');
-            // 👉 修正：每次開局時，強制解除「閱讀測驗」按鈕的灰色鎖定狀態並還原文字
             const essayInnerBtn = essayBtnContainer.querySelector('.btn');
             if (essayInnerBtn) {
                 essayInnerBtn.disabled = false;
@@ -1597,7 +1574,6 @@
             else { btnQuiz.innerHTML = '<i class="fas fa-question-circle"></i> 單字測驗'; btnQuiz.disabled = false; }
         }
 
-        // 👉 修正：恢復強制答題鎖，必須完成「單字測驗」才能關閉視窗
         function closeModal() {
             if (currentModalWord && !quizStatus[currentModalWord]) {
                 const quizBtn = document.getElementById('btn-ai-quiz');
@@ -1619,15 +1595,12 @@
         function checkPhase1End() {
             if (foundWords.length === currentLessonData.length && !isEndGameTriggered) {
                 isEndGameTriggered = true; 
-                
-                // 👉 修正 1：找字完成當下，立刻停止計時器！這樣時間就會永遠凍結在找字所花費的時間
                 stopTimer();
                 
-                // 找完字立刻上傳第一階段成績 (背景無聲上傳)
                 submitScoreToServer(score, timeElapsed, true); 
                 showToast('<i class="fas fa-cloud-upload-alt text-blue-400"></i> 找字完成！階段成績已自動紀錄。');
                 
-                document.getElementById('refresh-essay-btn').classList.remove('hidden'); // 顯示重整按鈕
+                document.getElementById('refresh-essay-btn').classList.remove('hidden');
 
                 const essayBtn = document.getElementById('essay-btn-container');
                 if (essayBtn) {
@@ -1704,7 +1677,6 @@
                                 if (wordTag && !wordTag.querySelector('.crown-icon')) wordTag.innerHTML += '<i class="fas fa-crown crown-icon"></i>';
                             } else {
                                 quizStatus[currentModalWord] = 'wrong'; optObj.wasSelected = true; 
-                                if (!failedWords.includes(currentModalWord)) failedWords.push(currentModalWord);
                                 this.classList.add('wrong'); this.innerHTML += ' <i class="fas fa-times float-right mt-1"></i>';
                                 const correctDiv = Array.from(document.querySelectorAll('.quiz-option')).find(el => el.innerText.includes(target.quiz.options[target.quiz.correctIndex]));
                                 if(correctDiv) correctDiv.classList.add('correct');
@@ -1724,19 +1696,6 @@
             else { btnQuiz2.innerHTML = '<i class="fas fa-question-circle"></i> 單字測驗'; btnQuiz2.disabled = false; }
         }
 
-        async function callGeminiAPI(allWordsStr, unitName) {
-            const promptText = `請用以下語詞寫一篇適合閱讀的短文(約150字)：${allWordsStr}。請確保文章通順且語意自然，適合做為國語文填空測驗。`;
-            // 套用 fetchWithRetry 進行自動重試
-            const response = await fetchWithRetry(GAS_API_URL, { 
-                method: 'POST', 
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
-                body: JSON.stringify({ prompt: promptText, unitName: unitName }) 
-            }, 3);
-            const data = await response.json();
-            if (data.error) throw new Error(data.error);
-            return data.text;
-        }
-
         async function startFillInTheBlankTest() {
             const modal = document.getElementById('fill-blank-modal');
             const loadingBox = document.getElementById('fb-loading');
@@ -1745,7 +1704,7 @@
             
             document.getElementById('header-msg-area').innerHTML = '';
             
-            loadingBox.innerHTML = `<i class="fas fa-pen-fancy text-5xl mb-4 text-purple-400 animate-pulse"></i><p class="text-xl font-bold text-gray-600">正在準備專屬短文測驗<span class="loading-dots"></span></p><p class="text-sm text-gray-400 mt-2">尋找快取文章或呼叫 AI 中</p>`;
+            loadingBox.innerHTML = `<i class="fas fa-pen-fancy text-5xl mb-4 text-purple-400 animate-pulse"></i><p class="text-xl font-bold text-gray-600">正在準備專屬短文測驗<span class="loading-dots"></span></p><p class="text-sm text-gray-400 mt-2">正在從題庫載入文章中</p>`;
             
             modal.classList.add('show');
             loadingBox.classList.remove('hidden');
@@ -1754,33 +1713,22 @@
             
             let cachedList = cachedStories[currentLessonName] || [];
             currentEssayRound = 1;
-            maxEssayRounds = isAdmin ? 10 : 5; // 👉 如果是開發者，可檢視高達 10 篇文章
+            maxEssayRounds = isAdmin ? 10 : 5;
 
             if (cachedList.length >= maxEssayRounds) {
-                // 👉 開發者模式不打亂順序，方便依序審閱試算表中的快取文章
                 let listToUse = isAdmin ? [...cachedList] : [...cachedList].sort(() => 0.5 - Math.random());
                 currentEssayList = listToUse.slice(0, maxEssayRounds);
             } else if (cachedList.length > 0) {
                 currentEssayList = [];
-                for(let i=0; i<maxEssayRounds; i++) currentEssayList.push(cachedList[i % cachedList.length]);
-                let allWordsStr = currentLessonData.map(w => w.word).join('、');
-                callGeminiAPI(allWordsStr, currentLessonName).catch(e => console.warn("背景補充短文失敗:", e));
-            } else {
-                try {
-                    let allWordsStr = currentLessonData.map(w => w.word).join('、');
-                    let newText = await callGeminiAPI(allWordsStr, currentLessonName);
-                    if (!cachedStories[currentLessonName]) cachedStories[currentLessonName] = [];
-                    cachedStories[currentLessonName].push(newText); 
-                    currentEssayList = Array(maxEssayRounds).fill(newText);
-                } catch (err) {
-                    console.warn("API 生成失敗", err);
-                    // 移除備用短文，改為明確報錯並引導使用者重新抓取
-                    loadingBox.innerHTML = `<i class="fas fa-exclamation-triangle text-5xl mb-6 text-red-400"></i><p class="text-xl font-bold text-red-600 mb-2">生成失敗</p><p class="text-sm text-gray-500">呼叫 AI 短文時發生錯誤，請點擊上方「重整閱讀題」重新抓取。</p>`;
-                    return; 
+                for (let i = 0; i < maxEssayRounds; i++) {
+                    currentEssayList.push(cachedList[i % cachedList.length]);
                 }
+            } else {
+                loadingBox.innerHTML = `<i class="fas fa-exclamation-triangle text-5xl mb-6 text-red-400"></i><p class="text-xl font-bold text-red-600 mb-2">找不到短文題庫</p><p class="text-sm text-gray-500">請點擊上方「重整閱讀題」重新向後台資料庫讀取題目。</p>`;
+                return; 
             }
             
-            await new Promise(resolve => setTimeout(resolve, 600)); 
+            await new Promise(resolve => setTimeout(resolve, 400)); 
             loadEssayRound();
         }
 
@@ -1800,7 +1748,6 @@
             document.getElementById('check-ans-btn').disabled = false;
             document.getElementById('check-ans-btn').innerHTML = '<i class="fas fa-tasks"></i> 批改答案';
             
-            // 👉 介面上同步顯示動態總關卡數，並為開發者加入下拉選單
             const badge = document.getElementById('essay-round-badge');
             if (isAdmin) {
                 const themes = ["科幻", "動物", "末日", "災難", "校園", "宮廷", "太空", "魔幻", "歷史", "神話"];
@@ -1829,15 +1776,13 @@
 
             let hasAnyMatch = false;
             let matchCount = 0;
-            let placeholders = {}; // 👉 新增：使用佔位符機制避免長詞包短詞造成的 HTML 標籤破裂
+            let placeholders = {};
 
             for (let w of sortedWords) {
                 if (aiText.includes(w)) {
                     hasAnyMatch = true;
                     if (matchCount < 7) {
                         let ph = `__PH_${matchCount}__`;
-                        // 移除 Regex 的 'g' 標籤，僅替換文章中「第一次」出現的該語詞。
-                        // 這能解決同一個詞挖了兩個洞，底下選項卻只有一個導致無法通關的 Bug！
                         aiText = aiText.replace(w, ph);
                         placeholders[ph] = `<span class="dropzone" data-answer="${w}"></span>`;
                         wordsToBank.push(w);
@@ -1846,7 +1791,6 @@
                 }
             }
 
-            // 👉 將佔位符還原為真正的 HTML span 標籤
             for (let ph in placeholders) {
                 aiText = aiText.replace(ph, placeholders[ph]);
             }
@@ -1974,7 +1918,6 @@
             loadingBox.classList.add('hidden'); colArticle.classList.remove('hidden'); colWords.classList.remove('hidden');
         }
         
-        // 👉 新增：提供開發者切換特定文章的函數
         function jumpToEssay(round) {
             currentEssayRound = parseInt(round);
             loadEssayRound();
@@ -1985,7 +1928,6 @@
             loadEssayRound();
         }
 
-        // 👉 修正解鎖判斷：根據動態總關卡數解鎖 (開發者免除此限制)
         function closeFillBlankModal() {
             if (!isAdmin && currentEssayRound <= maxEssayRounds) {
                 const btn = document.querySelector('#fill-blank-modal .close-btn');
@@ -2107,7 +2049,6 @@
                     } else {
                         setTimeout(() => {
                             document.getElementById('fill-blank-modal').classList.remove('show');
-                            // (這裡原本的 stopTimer 已經被移到 checkPhase1End 中了)
                             
                             const arrow = document.getElementById('guide-arrow-el');
                             if (arrow) arrow.remove();
@@ -2163,7 +2104,6 @@
             document.getElementById('final-score').innerText = finalScore;
             document.getElementById('final-time').innerText = formatTime(finalTime);
             
-            // 👉 若為開發者測試，結算畫面上傳狀態會直接標示測試中
             if (isAdmin) {
                 document.getElementById('upload-status').innerHTML = '<i class="fas fa-shield-alt text-blue-400"></i> 開發者測試：成績不寫入後台';
             } else {
@@ -2200,18 +2140,16 @@
 
         function getFallbackData() {
             return [
-                { unit: "展示單元", word: "守株待兔", clue: "比喻拘泥守成，不知變通。", origin: "《韓非子》", sentences: ["不能守株待兔。"], quiz: { question: "農夫得到了什麼？", options: ["肉", "田地荒蕪", "技巧"], correctIndex: 1 } },
-                { unit: "展示單元", word: "狐假虎威", clue: "比喻藉著別人的威勢來欺壓人。", origin: "《戰國策》", sentences: ["別狐假虎威。"], quiz: { question: "動物怕誰？", options: ["狐狸", "老虎", "大象"], correctIndex: 1 } },
-                { unit: "展示單元", word: "馬到成功", clue: "比喻事情順利。", origin: "無名氏", sentences: ["祝馬到成功。"], quiz: { question: "適合用在？", options: ["祝賀", "跑步", "失敗"], correctIndex: 0 } }
+                { unit: "展示單元", word: "守株待兔", clue: "比喻拘泥守成，不知變通。", sentences: ["不能守株待兔。"], quiz: { question: "農夫得到了什麼？", options: ["肉", "田地荒蕪", "技巧"], correctIndex: 1 } },
+                { unit: "展示單元", word: "狐假虎威", clue: "比喻藉著別人的威勢來欺壓人。", sentences: ["別狐假虎威。"], quiz: { question: "動物怕誰？", options: ["狐狸", "老虎", "大象"], correctIndex: 1 } },
+                { unit: "展示單元", word: "馬到成功", clue: "比喻事情順利。", sentences: ["祝馬到成功。"], quiz: { question: "適合用在？", options: ["祝賀", "跑步", "失敗"], correctIndex: 0 } }
             ];
         }
 
-        // 👉 修正：當「閱讀測驗」反灰或卡住時，向後端重新讀取題目並解除按鈕鎖定，不需重新遊戲
         async function refreshEssay() {
             const refreshBtn = document.getElementById('refresh-essay-btn');
             if (refreshBtn) refreshBtn.disabled = true;
 
-            // 1. 立即解除「閱讀測驗」按鈕的灰色鎖定狀態，確保學生可以點擊
             const essayBtnContainer = document.getElementById('essay-btn-container');
             if (essayBtnContainer) {
                 essayBtnContainer.classList.remove('hidden');
@@ -2226,7 +2164,6 @@
             showToast("<i class='fas fa-sync fa-spin text-blue-400'></i> 正在從後端資料庫重新讀取題目...");
 
             try {
-                // 2. 重新向後端資料庫請求該單元的最新題目與短文資料
                 const fetchUrl = GAS_API_URL + (GAS_API_URL.includes('?') ? '&' : '?') + `action=getUnit&unitName=${encodeURIComponent(currentLessonName)}&t=` + new Date().getTime();
                 const response = await fetchWithRetry(fetchUrl, { method: 'GET', redirect: 'follow' }, 3, 10000);
                 const textData = await response.text();
@@ -2234,7 +2171,6 @@
 
                 if (data.error) throw new Error(data.error);
 
-                // 更新題庫與快取短文，但保留學生目前的找字進度與分數
                 if (data.words) {
                     currentLessonData = processSheetData(data.words, currentLessonName);
                 }
@@ -2252,7 +2188,6 @@
             }
         }
 
-        // 👉 新增：開發者一鍵找字功能
         function debugCompletePhase1() {
             if(!isAdmin) return;
             currentLessonData.forEach(item => {
@@ -2269,7 +2204,6 @@
             checkPhase1End();
         }
 
-        // 👉 新增：開發者一鍵填入短文功能
         function debugCompletePhase2() {
             if(!isAdmin) return;
             if(!document.getElementById('fill-blank-modal').classList.contains('show')) {
@@ -2283,7 +2217,7 @@
                 }
             });
             checkAllZonesFilled();
-            setTimeout(checkAllAnswers, 500); // 延遲一下讓它自動批改
+            setTimeout(checkAllAnswers, 500);
             showToast("已啟動：一鍵填寫並批改！");
         }
     </script>
