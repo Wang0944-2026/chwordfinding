@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>國語找字遊戲 v7.9</title>
+    <title>國語找字遊戲 v8.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -221,7 +221,7 @@
 </head>
 <body>
 
-    <div class="footer-version">大榮老師製作 © 2026 | Version 7.9 (v7.9)</div>
+    <div class="footer-version">大榮老師製作 © 2026 | Version 8.0 (v8.0)</div>
 
     <div id="init-loader">
         <i class="fas fa-circle-notch fa-spin text-5xl mb-4" style="color: var(--btn-blue)"></i>
@@ -826,12 +826,12 @@
             if (currentLessonName === unitName && currentLessonData.length > 0) {
                 const totalChars = currentLessonData.reduce((sum, item) => sum + item.word.length, 0);
                 const count = currentLessonData.length;
-                return (totalChars * 50) + (count * 50) + (Math.min(7, count) * 20 * 5);
+                return (totalChars * 50) + (count * 50) + (Math.min(10, count) * 20 * 5);
             }
             
             if (unitItem && unitItem.wordCount) {
                 const count = unitItem.wordCount;
-                return (count * 2 * 50) + (count * 50) + (Math.min(7, count) * 20 * 5);
+                return (count * 2 * 50) + (count * 50) + (Math.min(10, count) * 20 * 5);
             }
             return 0;
         }
@@ -1781,7 +1781,7 @@
             for (let w of sortedWords) {
                 if (aiText.includes(w)) {
                     hasAnyMatch = true;
-                    if (matchCount < 7) {
+                    if (matchCount < 10) {
                         let ph = `__PH_${matchCount}__`;
                         aiText = aiText.replace(w, ph);
                         placeholders[ph] = `<span class="dropzone" data-answer="${w}"></span>`;
