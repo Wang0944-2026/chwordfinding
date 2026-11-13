@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>國語找字遊戲 v8.1</title>
+    <title>國語找字遊戲 v8.2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -186,9 +186,28 @@
         .article-box::-webkit-scrollbar-track { background: transparent; }
         .article-box::-webkit-scrollbar-thumb { background: var(--panel-border); border-radius: 10px; }
 
-        .article-box { background: white; padding: 25px; border-radius: 20px; font-size: 1.2rem; line-height: 2.2; color: var(--text-main); border: 2px dashed var(--panel-border); width: 100%; transition: all 0.3s; flex: 1; overflow-y: auto; scroll-behavior: smooth; text-align: justify; text-justify: inter-ideograph; }
+        .article-box { background: white; padding: 25px; border-radius: 20px; font-size: 1.2rem; line-height: 2.2; color: var(--text-main); border: 2px dashed var(--panel-border); width: 100%; transition: font-size 0.2s ease, line-height 0.2s ease; flex: 1; overflow-y: auto; scroll-behavior: smooth; text-align: justify; text-justify: inter-ideograph; }
         
-        .dropzone { display: inline-block; min-width: 80px; height: 38px; margin: 0 6px; border-bottom: 3px solid var(--btn-blue); background: #EDF1F4; vertical-align: middle; text-align: center; line-height: 38px; border-radius: 8px 8px 0 0; color: var(--btn-blue); font-weight: bold; transition: all 0.3s; cursor: pointer; padding: 0 10px; position: relative; }
+        /* 專名號（橫排文字下方實線）與書名號（橫排文字下方波浪線）樣式 */
+        .proper-noun {
+            text-decoration: underline;
+            text-decoration-style: solid;
+            text-decoration-thickness: 2px;
+            text-underline-offset: 6px;
+            text-decoration-skip-ink: none;
+            padding: 0 1px;
+        }
+        .book-title {
+            text-decoration: underline;
+            text-decoration-style: wavy;
+            text-decoration-thickness: 1.5px;
+            text-underline-offset: 5px;
+            text-decoration-skip-ink: none;
+            padding: 0 1px;
+        }
+
+        /* 使用 em 相對單位，讓填空框隨文章字體大小自動等比例縮放 */
+        .dropzone { display: inline-block; min-width: 4.2em; height: 1.9em; margin: 0 0.25em; border-bottom: 3px solid var(--btn-blue); background: #EDF1F4; vertical-align: middle; text-align: center; line-height: 1.9em; border-radius: 8px 8px 0 0; color: var(--btn-blue); font-weight: bold; transition: all 0.25s; cursor: pointer; padding: 0 0.5em; position: relative; font-size: 0.95em; }
         .dropzone.active-target { background: #D5E1E8; border-bottom-color: var(--btn-orange); }
         .dropzone.correct { background: var(--cell-found-bg); border-bottom-color: var(--cell-found-border); color: white; pointer-events: none; transform: scale(1.05); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .dropzone.wrong { background: #FCE8E8; border-bottom-color: #E74C3C; color: #C0392B; animation: shake 0.4s; }
@@ -221,7 +240,7 @@
 </head>
 <body>
 
-    <div class="footer-version">大榮老師製作 © 2026 | Version 8.1 (v8.1)</div>
+    <div class="footer-version">大榮老師製作 © 2026 | Version 8.2 (v8.2)</div>
 
     <div id="init-loader">
         <i class="fas fa-circle-notch fa-spin text-5xl mb-4" style="color: var(--btn-blue)"></i>
@@ -425,12 +444,24 @@
             </div>
 
             <div id="fb-article-col" class="article-col hidden">
-                <div class="flex items-center gap-3 mb-4 shrink-0">
-                    <i class="fas fa-book-reader text-3xl text-blue-400"></i>
-                    <h2 class="text-2xl font-bold text-gray-700 flex items-center">
-                        短文測驗 <span id="essay-round-badge" class="text-sm bg-blue-100 text-blue-600 px-2 py-1 rounded-full ml-3 shadow-sm border border-blue-200">第 1 / 5 關</span>
+                <div class="flex flex-wrap items-center gap-2 mb-3 shrink-0">
+                    <i class="fas fa-book-reader text-2xl md:text-3xl text-blue-400"></i>
+                    <h2 class="text-xl md:text-2xl font-bold text-gray-700 flex items-center">
+                        短文測驗 <span id="essay-round-badge" class="text-xs md:text-sm bg-blue-100 text-blue-600 px-2.5 py-1 rounded-full ml-2 shadow-sm border border-blue-200">第 1 / 5 關</span>
                     </h2>
-                    <div id="header-msg-area" class="ml-auto text-[1.05rem]"></div>
+                    
+                    <!-- 字體大小縮放控制 (以現有大小為基準，上下各2階段) -->
+                    <div class="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-full border border-gray-200 ml-1 shadow-inner">
+                        <button id="font-dec-btn" onclick="changeEssayFontSize(-1)" class="w-7 h-7 flex items-center justify-center rounded-full bg-white text-gray-700 hover:bg-gray-200 font-black text-xs shadow-sm transition disabled:opacity-40 disabled:cursor-not-allowed" title="縮小字體">
+                            A-
+                        </button>
+                        <span id="font-level-label" class="text-xs font-bold text-gray-600 px-1.5 min-w-[42px] text-center select-none">標準</span>
+                        <button id="font-inc-btn" onclick="changeEssayFontSize(1)" class="w-7 h-7 flex items-center justify-center rounded-full bg-white text-gray-700 hover:bg-gray-200 font-black text-sm shadow-sm transition disabled:opacity-40 disabled:cursor-not-allowed" title="放大字體">
+                            A+
+                        </button>
+                    </div>
+
+                    <div id="header-msg-area" class="ml-auto text-[1rem] md:text-[1.05rem]"></div>
                 </div>
                 <div id="article-container" class="article-box"></div>
             </div>
@@ -507,6 +538,100 @@
         
         // 進度條相關變數
         let progressTimer = null;
+
+        // 短文測驗字體大小階段：以 0 (1.2rem) 為基準，可上下各調整 2 階段 (-2 ~ +2)
+        let essayFontStage = 0;
+        const ESSAY_FONT_STAGES = {
+            '-2': { fontSize: '0.96rem', lineHeight: '2.0', label: '極小(-2)' },
+            '-1': { fontSize: '1.08rem', lineHeight: '2.1', label: '縮小(-1)' },
+            '0':  { fontSize: '1.2rem',  lineHeight: '2.2', label: '標準' },
+            '1':  { fontSize: '1.38rem', lineHeight: '2.3', label: '放大(+1)' },
+            '2':  { fontSize: '1.58rem', lineHeight: '2.4', label: '極大(+2)' }
+        };
+
+        function changeEssayFontSize(delta) {
+            const nextStage = essayFontStage + delta;
+            if (nextStage < -2 || nextStage > 2) return;
+            essayFontStage = nextStage;
+            applyEssayFontSize();
+        }
+
+        function applyEssayFontSize() {
+            const articleBox = document.getElementById('article-container');
+            const decBtn = document.getElementById('font-dec-btn');
+            const incBtn = document.getElementById('font-inc-btn');
+            const labelEl = document.getElementById('font-level-label');
+            const config = ESSAY_FONT_STAGES[String(essayFontStage)] || ESSAY_FONT_STAGES['0'];
+
+            if (articleBox) {
+                articleBox.style.fontSize = config.fontSize;
+                articleBox.style.lineHeight = config.lineHeight;
+            }
+            if (labelEl) labelEl.innerText = config.label;
+            if (decBtn) decBtn.disabled = (essayFontStage <= -2);
+            if (incBtn) incBtn.disabled = (essayFontStage >= 2);
+        }
+
+        // 常見短文故事專有名詞字典（人名、星球星系、地名、歷史神話人物等），自動加上專名號底線
+        const AUTO_PROPER_NOUNS = [
+            "仙女座星系", "喜馬拉雅山", "奧林匹斯山", "萬里長城", "愛因斯坦",
+            "太陽系", "銀河系", "北極星", "海王星", "天王星", "冥王星",
+            "太平洋", "大西洋", "亞馬遜", "日月潭", "阿里山", "紫禁城", "金字塔",
+            "諸葛亮", "孫悟空", "唐三藏", "豬八戒", "沙悟淨", "阿波羅", "雅典娜", "愛迪生",
+            "王老師", "林老師", "陳老師", "張老師", "李老師", "黃老師",
+            "小宇", "小明", "小華", "小美", "小傑", "阿傑", "小雅", "小安", "小恩", "小樂", "小軒", "小涵", "小妤", "阿明", "阿華",
+            "地球", "月球", "火星", "木星", "土星", "金星", "水星",
+            "臺灣", "台灣", "臺北", "台北", "臺中", "台中", "臺南", "台南", "高雄", "嘉義", "玉山", "長城", "長安", "洛陽", "赤壁", "雅典", "埃及",
+            "李白", "杜甫", "蘇軾", "孔明", "曹操", "劉備", "關羽", "張飛", "嫦娥", "后羿", "夸父", "女媧", "盤古", "宙斯", "牛頓"
+        ];
+
+        // 處理短文標點符號規範化，並支援專名號與書名號渲染
+        function formatStoryPunctuation(text) {
+            if (!text) return "";
+            let res = text;
+
+            // 1. 修正中文字句常見的半形標點、破折號與刪節號為教育部標準全形標點
+            res = res.replace(/\.{3,}|…+/g, '……');
+            res = res.replace(/--+|—+/g, '——');
+            res = res.replace(/([\u4e00-\u9fa5]),/g, '$1，');
+            res = res.replace(/([\u4e00-\u9fa5])!/g, '$1！');
+            res = res.replace(/([\u4e00-\u9fa5])\?/g, '$1？');
+            res = res.replace(/([\u4e00-\u9fa5]);/g, '$1；');
+            res = res.replace(/([\u4e00-\u9fa5]):/g, '$1：');
+
+            // 2. 保護並轉換自訂或後端 RichText 傳來的書名號與專名號標記
+            let tagMap = {};
+            let tagIdx = 0;
+            const saveTag = (html) => {
+                let key = `__TAG_${tagIdx++}__`;
+                tagMap[key] = html;
+                return key;
+            };
+
+            // 支援波浪書名號 (<w>書名</w>、~書名~、﹏書名﹏) 與甲式書名號《書名》〈篇名〉內文自動加波浪書名號或保留標點
+            res = res.replace(/<w>([\s\S]*?)<\/w>/g, (m, p1) => saveTag(`<span class="book-title">${p1}</span>`));
+            res = res.replace(/~([^~\r\n]+)~/g, (m, p1) => saveTag(`<span class="book-title">${p1}</span>`));
+            res = res.replace(/﹏([^﹏\r\n]+)﹏/g, (m, p1) => saveTag(`<span class="book-title">${p1}</span>`));
+            res = res.replace(/《([^》\r\n]+)》/g, (m, p1) => saveTag(`《<span class="book-title">${p1}</span>》`));
+            res = res.replace(/〈([^〉\r\n]+)〉/g, (m, p1) => saveTag(`〈<span class="book-title">${p1}</span>〉`));
+
+            // 支援專名號 (試算表底線 <u>專名</u>、_專名_)
+            res = res.replace(/<u>([\s\S]*?)<\/u>/g, (m, p1) => saveTag(`<span class="proper-noun">${p1}</span>`));
+            res = res.replace(/_([^_\r\n]+)_/g, (m, p1) => saveTag(`<span class="proper-noun">${p1}</span>`));
+
+            // 3. 自動偵測故事常見專有名詞（如「小宇」、「銀河系」等）並加上專名號
+            for (let pn of AUTO_PROPER_NOUNS) {
+                if (res.includes(pn)) {
+                    res = res.split(pn).join(saveTag(`<span class="proper-noun">${pn}</span>`));
+                }
+            }
+
+            // 4. 還原標記
+            for (let key in tagMap) {
+                res = res.split(key).join(tagMap[key]);
+            }
+            return res;
+        }
 
         // 判斷該單元每篇短文的挖空數量上限：第八課(含)以後為 10 格，第七課以前維持 7 格
         function getMaxBlanksForUnit(unitName) {
@@ -1771,6 +1896,7 @@
             
             document.getElementById('article-container').scrollTop = 0;
             colWords.scrollTop = 0;
+            applyEssayFontSize();
             
             document.getElementById('header-msg-area').innerHTML = '';
             document.getElementById('learning-hints-container').innerHTML = '';
@@ -1789,10 +1915,10 @@
                     optionsHtml += `<option value="${i}" ${i === currentEssayRound ? 'selected' : ''}>第${i}篇-${themeName}</option>`;
                 }
                 badge.innerHTML = `<select onchange="jumpToEssay(this.value)" class="bg-transparent font-bold outline-none cursor-pointer text-yellow-700">${optionsHtml}</select>`;
-                badge.className = "text-sm bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full ml-3 shadow-sm border border-yellow-300";
+                badge.className = "text-xs md:text-sm bg-yellow-100 text-yellow-700 px-2.5 py-1 rounded-full ml-2 shadow-sm border border-yellow-300";
             } else {
                 badge.innerHTML = `第 ${currentEssayRound} / ${maxEssayRounds} 關`;
-                badge.className = "text-sm bg-blue-100 text-blue-600 px-2 py-1 rounded-full ml-3 shadow-sm border border-blue-200";
+                badge.className = "text-xs md:text-sm bg-blue-100 text-blue-600 px-2.5 py-1 rounded-full ml-2 shadow-sm border border-blue-200";
             }
             
             selectedTouchWord = null; 
@@ -1821,11 +1947,21 @@
                         wordsToBank.push(w);
                         matchCount++;
                     }
+                } else {
+                    // 若目標語詞在試算表中不小心被加了底線或斜體標籤，仍可安全比對挖空
+                    let escapedW = w.split('').join('(?:<\\/?[uw]>)*');
+                    let regex = new RegExp(`(?:<[uw]>)*${escapedW}(?:<\\/[uw]>)*`);
+                    if (regex.test(aiText)) {
+                        hasAnyMatch = true;
+                        if (matchCount < maxBlanks) {
+                            let ph = `__PH_${matchCount}__`;
+                            aiText = aiText.replace(regex, ph);
+                            placeholders[ph] = `<span class="dropzone" data-answer="${w}"></span>`;
+                            wordsToBank.push(w);
+                            matchCount++;
+                        }
+                    }
                 }
-            }
-
-            for (let ph in placeholders) {
-                aiText = aiText.replace(ph, placeholders[ph]);
             }
 
             if (!hasAnyMatch) {
@@ -1833,6 +1969,14 @@
                 if (currentEssayRound <= maxEssayRounds) loadEssayRound();
                 else document.getElementById('fill-blank-modal').classList.remove('show');
                 return;
+            }
+
+            // 針對非挖空區塊套用標點符號規範化與專名號、書名號渲染，完全不影響挖空佔位符
+            let segments = aiText.split(/(__PH_\d+__)/g);
+            aiText = segments.map(seg => /^__PH_\d+__$/.test(seg) ? seg : formatStoryPunctuation(seg)).join('');
+
+            for (let ph in placeholders) {
+                aiText = aiText.replace(ph, placeholders[ph]);
             }
 
             articleContainer.innerHTML = aiText.replace(/\n/g, '<br>');
