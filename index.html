@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>國語找字遊戲 v8.2</title>
+    <title>國語找字遊戲 v8.5</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -187,24 +187,6 @@
         .article-box::-webkit-scrollbar-thumb { background: var(--panel-border); border-radius: 10px; }
 
         .article-box { background: white; padding: 25px; border-radius: 20px; font-size: 1.2rem; line-height: 2.2; color: var(--text-main); border: 2px dashed var(--panel-border); width: 100%; transition: font-size 0.2s ease, line-height 0.2s ease; flex: 1; overflow-y: auto; scroll-behavior: smooth; text-align: justify; text-justify: inter-ideograph; }
-        
-        /* 專名號（橫排文字下方實線）與書名號（橫排文字下方波浪線）樣式 */
-        .proper-noun {
-            text-decoration: underline;
-            text-decoration-style: solid;
-            text-decoration-thickness: 2px;
-            text-underline-offset: 6px;
-            text-decoration-skip-ink: none;
-            padding: 0 1px;
-        }
-        .book-title {
-            text-decoration: underline;
-            text-decoration-style: wavy;
-            text-decoration-thickness: 1.5px;
-            text-underline-offset: 5px;
-            text-decoration-skip-ink: none;
-            padding: 0 1px;
-        }
 
         /* 使用 em 相對單位，讓填空框隨文章字體大小自動等比例縮放 */
         .dropzone { display: inline-block; min-width: 4.2em; height: 1.9em; margin: 0 0.25em; border-bottom: 3px solid var(--btn-blue); background: #EDF1F4; vertical-align: middle; text-align: center; line-height: 1.9em; border-radius: 8px 8px 0 0; color: var(--btn-blue); font-weight: bold; transition: all 0.25s; cursor: pointer; padding: 0 0.5em; position: relative; font-size: 0.95em; }
@@ -240,7 +222,7 @@
 </head>
 <body>
 
-    <div class="footer-version">大榮老師製作 © 2026 | Version 8.2 (v8.2)</div>
+    <div class="footer-version">大榮老師製作 © 2026 | Version 8.5 (v8.5)</div>
 
     <div id="init-loader">
         <i class="fas fa-circle-notch fa-spin text-5xl mb-4" style="color: var(--btn-blue)"></i>
@@ -570,67 +552,6 @@
             if (labelEl) labelEl.innerText = config.label;
             if (decBtn) decBtn.disabled = (essayFontStage <= -2);
             if (incBtn) incBtn.disabled = (essayFontStage >= 2);
-        }
-
-        // 常見短文故事專有名詞字典（人名、星球星系、地名、歷史神話人物等），自動加上專名號底線
-        const AUTO_PROPER_NOUNS = [
-            "仙女座星系", "喜馬拉雅山", "奧林匹斯山", "萬里長城", "愛因斯坦",
-            "太陽系", "銀河系", "北極星", "海王星", "天王星", "冥王星",
-            "太平洋", "大西洋", "亞馬遜", "日月潭", "阿里山", "紫禁城", "金字塔",
-            "諸葛亮", "孫悟空", "唐三藏", "豬八戒", "沙悟淨", "阿波羅", "雅典娜", "愛迪生",
-            "王老師", "林老師", "陳老師", "張老師", "李老師", "黃老師",
-            "小宇", "小明", "小華", "小美", "小傑", "阿傑", "小雅", "小安", "小恩", "小樂", "小軒", "小涵", "小妤", "阿明", "阿華",
-            "地球", "月球", "火星", "木星", "土星", "金星", "水星",
-            "臺灣", "台灣", "臺北", "台北", "臺中", "台中", "臺南", "台南", "高雄", "嘉義", "玉山", "長城", "長安", "洛陽", "赤壁", "雅典", "埃及",
-            "李白", "杜甫", "蘇軾", "孔明", "曹操", "劉備", "關羽", "張飛", "嫦娥", "后羿", "夸父", "女媧", "盤古", "宙斯", "牛頓"
-        ];
-
-        // 處理短文標點符號規範化，並支援專名號與書名號渲染
-        function formatStoryPunctuation(text) {
-            if (!text) return "";
-            let res = text;
-
-            // 1. 修正中文字句常見的半形標點、破折號與刪節號為教育部標準全形標點
-            res = res.replace(/\.{3,}|…+/g, '……');
-            res = res.replace(/--+|—+/g, '——');
-            res = res.replace(/([\u4e00-\u9fa5]),/g, '$1，');
-            res = res.replace(/([\u4e00-\u9fa5])!/g, '$1！');
-            res = res.replace(/([\u4e00-\u9fa5])\?/g, '$1？');
-            res = res.replace(/([\u4e00-\u9fa5]);/g, '$1；');
-            res = res.replace(/([\u4e00-\u9fa5]):/g, '$1：');
-
-            // 2. 保護並轉換自訂或後端 RichText 傳來的書名號與專名號標記
-            let tagMap = {};
-            let tagIdx = 0;
-            const saveTag = (html) => {
-                let key = `__TAG_${tagIdx++}__`;
-                tagMap[key] = html;
-                return key;
-            };
-
-            // 支援波浪書名號 (<w>書名</w>、~書名~、﹏書名﹏) 與甲式書名號《書名》〈篇名〉內文自動加波浪書名號或保留標點
-            res = res.replace(/<w>([\s\S]*?)<\/w>/g, (m, p1) => saveTag(`<span class="book-title">${p1}</span>`));
-            res = res.replace(/~([^~\r\n]+)~/g, (m, p1) => saveTag(`<span class="book-title">${p1}</span>`));
-            res = res.replace(/﹏([^﹏\r\n]+)﹏/g, (m, p1) => saveTag(`<span class="book-title">${p1}</span>`));
-            res = res.replace(/《([^》\r\n]+)》/g, (m, p1) => saveTag(`《<span class="book-title">${p1}</span>》`));
-            res = res.replace(/〈([^〉\r\n]+)〉/g, (m, p1) => saveTag(`〈<span class="book-title">${p1}</span>〉`));
-
-            // 支援專名號 (試算表底線 <u>專名</u>、_專名_)
-            res = res.replace(/<u>([\s\S]*?)<\/u>/g, (m, p1) => saveTag(`<span class="proper-noun">${p1}</span>`));
-            res = res.replace(/_([^_\r\n]+)_/g, (m, p1) => saveTag(`<span class="proper-noun">${p1}</span>`));
-
-            // 3. 自動偵測故事常見專有名詞（如「小宇」、「銀河系」等）並加上專名號
-            for (let pn of AUTO_PROPER_NOUNS) {
-                if (res.includes(pn)) {
-                    res = res.split(pn).join(saveTag(`<span class="proper-noun">${pn}</span>`));
-                }
-            }
-
-            // 4. 還原標記
-            for (let key in tagMap) {
-                res = res.split(key).join(tagMap[key]);
-            }
-            return res;
         }
 
         // 判斷該單元每篇短文的挖空數量上限：第八課(含)以後為 10 格，第七課以前維持 7 格
@@ -1947,20 +1868,6 @@
                         wordsToBank.push(w);
                         matchCount++;
                     }
-                } else {
-                    // 若目標語詞在試算表中不小心被加了底線或斜體標籤，仍可安全比對挖空
-                    let escapedW = w.split('').join('(?:<\\/?[uw]>)*');
-                    let regex = new RegExp(`(?:<[uw]>)*${escapedW}(?:<\\/[uw]>)*`);
-                    if (regex.test(aiText)) {
-                        hasAnyMatch = true;
-                        if (matchCount < maxBlanks) {
-                            let ph = `__PH_${matchCount}__`;
-                            aiText = aiText.replace(regex, ph);
-                            placeholders[ph] = `<span class="dropzone" data-answer="${w}"></span>`;
-                            wordsToBank.push(w);
-                            matchCount++;
-                        }
-                    }
                 }
             }
 
@@ -1970,10 +1877,6 @@
                 else document.getElementById('fill-blank-modal').classList.remove('show');
                 return;
             }
-
-            // 針對非挖空區塊套用標點符號規範化與專名號、書名號渲染，完全不影響挖空佔位符
-            let segments = aiText.split(/(__PH_\d+__)/g);
-            aiText = segments.map(seg => /^__PH_\d+__$/.test(seg) ? seg : formatStoryPunctuation(seg)).join('');
 
             for (let ph in placeholders) {
                 aiText = aiText.replace(ph, placeholders[ph]);
