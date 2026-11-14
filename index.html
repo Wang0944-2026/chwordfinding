@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>國語找字遊戲 v8.5</title>
+    <title>國語找字遊戲 v8.8</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -188,6 +188,15 @@
 
         .article-box { background: white; padding: 25px; border-radius: 20px; font-size: 1.2rem; line-height: 2.2; color: var(--text-main); border: 2px dashed var(--panel-border); width: 100%; transition: font-size 0.2s ease, line-height 0.2s ease; flex: 1; overflow-y: auto; scroll-behavior: smooth; text-align: justify; text-justify: inter-ideograph; }
 
+        /* 呈現後端試算表儲存格中的底線（專名號）樣式 */
+        .article-box u, .article-box ins, .article-box .proper-noun {
+            text-decoration: none !important;
+            border-bottom: 2.2px solid var(--text-main) !important;
+            padding-bottom: 2px;
+            margin: 0 1.5px;
+            display: inline;
+        }
+
         /* 使用 em 相對單位，讓填空框隨文章字體大小自動等比例縮放 */
         .dropzone { display: inline-block; min-width: 4.2em; height: 1.9em; margin: 0 0.25em; border-bottom: 3px solid var(--btn-blue); background: #EDF1F4; vertical-align: middle; text-align: center; line-height: 1.9em; border-radius: 8px 8px 0 0; color: var(--btn-blue); font-weight: bold; transition: all 0.25s; cursor: pointer; padding: 0 0.5em; position: relative; font-size: 0.95em; }
         .dropzone.active-target { background: #D5E1E8; border-bottom-color: var(--btn-orange); }
@@ -222,7 +231,7 @@
 </head>
 <body>
 
-    <div class="footer-version">大榮老師製作 © 2026 | Version 8.5 (v8.5)</div>
+    <div class="footer-version">大榮老師製作 © 2026 | Version 8.8 (v8.8)</div>
 
     <div id="init-loader">
         <i class="fas fa-circle-notch fa-spin text-5xl mb-4" style="color: var(--btn-blue)"></i>
@@ -728,7 +737,7 @@
                 let classesSet = new Set();
                 studentsByClass = {};
                 studentWhitelist.forEach(user => {
-                    if (user.startsWith('666')) return;
+                    if (user.startsWith('666') || adminWhitelist.includes(user)) return;
                     let match = user.match(/^(\d+)/);
                     if (match) {
                         let numStr = match[1];
@@ -775,28 +784,26 @@
             const errorMsg = document.getElementById('login-error');
             
             let isValid = false;
-            
-            if (studentWhitelist.length > 0) {
-                if (studentWhitelist.includes(rawInput)) {
-                    isValid = true;
-                } else {
-                    errorMsg.innerText = "查無此學生資料，請確認班級、座號與姓名";
-                }
+            if (!rawInput) {
+                errorMsg.innerText = "請輸入登入資訊 (例如：60105洪天才)";
+            } else if (studentWhitelist.length === 0) {
+                errorMsg.innerText = "無法讀取後端學生名單，請重新整理網頁再試";
+            } else if (studentWhitelist.includes(rawInput)) {
+                isValid = true;
             } else {
-                if (/^\d{4,5}[\u4e00-\u9fa5]+$/.test(rawInput)) {
-                    isValid = true;
-                } else {
-                    errorMsg.innerText = "未啟用名單驗證，請確認輸入格式為班級+座號+姓名";
-                }
+                errorMsg.innerText = "查無此學生資料，請確認輸入是否與學生名單一致";
             }
             
             if (isValid) {
                 currentUser = rawInput;
+                // 嚴格依據後端「學生名單」中身份別是否有打勾（Ｖ）來決定是否進入開發者模式
                 isAdmin = adminWhitelist.includes(currentUser);
                 
                 if (isAdmin) {
                     document.getElementById('debug-panel').style.display = 'flex';
                     showToast("<i class='fas fa-tools text-yellow-400'></i> 已啟用開發者測試模式");
+                } else {
+                    document.getElementById('debug-panel').style.display = 'none';
                 }
 
                 document.getElementById('login-modal').classList.remove('show');
@@ -1859,11 +1866,14 @@
             const maxBlanks = getMaxBlanksForUnit(currentLessonName);
 
             for (let w of sortedWords) {
-                if (aiText.includes(w)) {
+                // 若要挖空的目標語詞在試算表中不小心帶有底線標籤，先移除該詞內部的 <u> 以便順利挖空
+                const escapedW = w.split('').map(ch => ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('(?:<\\/?u>)*');
+                const regexW = new RegExp(escapedW);
+                if (regexW.test(aiText)) {
                     hasAnyMatch = true;
                     if (matchCount < maxBlanks) {
                         let ph = `__PH_${matchCount}__`;
-                        aiText = aiText.replace(w, ph);
+                        aiText = aiText.replace(regexW, ph);
                         placeholders[ph] = `<span class="dropzone" data-answer="${w}"></span>`;
                         wordsToBank.push(w);
                         matchCount++;
@@ -1882,7 +1892,10 @@
                 aiText = aiText.replace(ph, placeholders[ph]);
             }
 
-            // 完全依照後端資料庫的原始文字內容如實呈現（僅轉換換行與填入空格）
+            // 支援轉換可能殘留的 Unicode 組合底線字元為 <u> 標籤，並完整保留後端傳來的 <u>專名</u>
+            aiText = aiText.replace(/(?:[^\u0332\u0331\u0333\ufe20-\ufe23\r\n<>][\u0332\u0331\u0333\ufe20-\ufe23]+)+/g, m => '<u>' + m.replace(/[\u0332\u0331\u0333\ufe20-\ufe23]/g, '') + '</u>');
+            aiText = aiText.replace(/<u>\s*(<span class="dropzone"[^>]*><\/span>)\s*<\/u>/g, '$1');
+            aiText = aiText.replace(/<u><\/u>/g, '');
             articleContainer.innerHTML = aiText.replace(/\n/g, '<br>');
 
             wordsToBank.sort(() => Math.random() - 0.5);
