@@ -1882,6 +1882,7 @@
                 aiText = aiText.replace(ph, placeholders[ph]);
             }
 
+            // 完全依照後端資料庫的原始文字內容如實呈現（僅轉換換行與填入空格）
             articleContainer.innerHTML = aiText.replace(/\n/g, '<br>');
 
             wordsToBank.sort(() => Math.random() - 0.5);
