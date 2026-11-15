@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>國語找字遊戲 v9.7</title>
+    <title>國語找字遊戲 v9.8</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -57,6 +57,28 @@
             flex-direction: column;
         }
 
+        /* 通用左右對齊與中文嚴格避頭點排版規則 */
+        .justify-text {
+            text-align: justify;
+            text-justify: inter-ideograph;
+            line-break: strict;
+            word-break: normal;
+            overflow-wrap: break-word;
+            text-wrap: pretty;
+        }
+
+        /* 防止段落最後出現單一文字或單一標點符號成行 */
+        .no-orphan {
+            white-space: nowrap;
+            display: inline;
+        }
+
+        /* 防止填空框與前後緊鄰的標點符號被拆開導致標點單獨成行 */
+        .nowrap-zone {
+            white-space: nowrap;
+            display: inline;
+        }
+
         /* 提升 z-index 至 10005，確保在 #init-loader (9999) 進度條畫面時也能顯示於最上層 */
         .footer-version { position: fixed; bottom: 10px; right: 15px; font-size: 0.85rem; color: var(--text-light); z-index: 10005; pointer-events: none; font-weight: bold; }
 
@@ -107,13 +129,13 @@
         .close-btn { position: absolute; top: 15px; right: 15px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #F0EBE5; color: #9B9895; cursor: pointer; transition: 0.2s; font-size: 1.2rem; }
         .close-btn:hover { background: #E8E4DF; color: #696561; }
 
-        .meaning-box { background: var(--bg-base); padding: 15px; border-radius: 15px; margin: 10px 0 6px 0; color: var(--text-main); text-align: left; font-size: 1.1rem; line-height: 1.6; border-left: 5px solid var(--panel-border); width: 100%; }
-        .content-box { padding: 15px; border-radius: 15px; margin: 6px 0; text-align: left; font-size: 1rem; line-height: 1.6; width: 100%; display: none; }
+        .meaning-box { background: var(--bg-base); padding: 15px; border-radius: 15px; margin: 10px 0 6px 0; color: var(--text-main); text-align: justify; text-justify: inter-ideograph; line-break: strict; text-wrap: pretty; font-size: 1.1rem; line-height: 1.6; border-left: 5px solid var(--panel-border); width: 100%; }
+        .content-box { padding: 15px; border-radius: 15px; margin: 6px 0; text-align: justify; text-justify: inter-ideograph; line-break: strict; text-wrap: pretty; font-size: 1rem; line-height: 1.6; width: 100%; display: none; }
         .content-box.show { display: block; animation: fadeIn 0.25s; }
         .box-sentence { background: #EDF1F4; border-left: 5px solid var(--btn-blue); color: #5B6B75; }
         .box-quiz { background: #EEF3ED; border-left: 5px solid var(--btn-green); color: #586B54; }
 
-        .quiz-option { background: white; border: 2px solid var(--panel-border); padding: 10px 12px; margin-top: 8px; border-radius: 10px; cursor: pointer; transition: all 0.2s; font-weight: bold; }
+        .quiz-option { background: white; border: 2px solid var(--panel-border); padding: 10px 12px; margin-top: 8px; border-radius: 10px; cursor: pointer; transition: all 0.2s; font-weight: bold; text-align: justify; text-justify: inter-ideograph; line-break: strict; text-wrap: pretty; }
         .quiz-option:hover { background: var(--bg-base); }
         .quiz-option.correct { background: var(--cell-found-bg); border-color: var(--cell-found-border); color: var(--cell-found-text); pointer-events: none; }
         .quiz-option.wrong { background: #E8D6D6; border-color: #CFA3A3; color: #8A5A5A; pointer-events: none; }
@@ -188,7 +210,20 @@
         .article-box::-webkit-scrollbar-track { background: transparent; }
         .article-box::-webkit-scrollbar-thumb { background: var(--panel-border); border-radius: 10px; }
 
-        .article-box { background: white; padding: 25px; border-radius: 20px; font-size: 1.2rem; line-height: 2.3; color: var(--text-main); border: 2px dashed var(--panel-border); width: 100%; transition: font-size 0.2s ease, line-height 0.2s ease; flex: 1; overflow-y: auto; scroll-behavior: smooth; text-align: justify; text-justify: inter-ideograph; }
+        .article-box { background: white; padding: 25px; border-radius: 20px; font-size: 1.2rem; line-height: 2.3; color: var(--text-main); border: 2px dashed var(--panel-border); width: 100%; transition: font-size 0.2s ease, line-height 0.2s ease; flex: 1; overflow-y: auto; scroll-behavior: smooth; text-align: justify; text-justify: inter-ideograph; line-break: strict; word-break: normal; overflow-wrap: break-word; text-wrap: pretty; }
+
+        .article-para {
+            text-align: justify;
+            text-justify: inter-ideograph;
+            line-break: strict;
+            word-break: normal;
+            overflow-wrap: break-word;
+            text-wrap: pretty;
+            margin: 0 0 0.25em 0;
+        }
+        .article-para:last-child {
+            margin-bottom: 0;
+        }
 
         /* 呈現後端試算表儲存格中的底線（專名號）樣式 */
         .article-box u, .article-box ins, .article-box .proper-noun {
@@ -260,7 +295,7 @@
 </head>
 <body>
 
-    <div class="footer-version">大榮老師製作 © 2026 | Version 9.7 (v9.7)</div>
+    <div class="footer-version">大榮老師製作 © 2026 | Version 9.8 (v9.8)</div>
 
     <div id="init-loader">
         <i class="fas fa-circle-notch fa-spin text-5xl mb-4" style="color: var(--btn-blue)"></i>
@@ -393,10 +428,10 @@
             <div class="modal-header-bar" id="modal-color-bar"></div>
             <button onclick="closeModal()" class="close-btn"><i class="fas fa-times"></i></button>
             <h2 id="modal-word" class="text-3xl font-bold mb-1 mt-2 tracking-widest">語詞</h2>
-            <div class="meaning-box"><p id="modal-meaning"></p></div>
-            <div id="content-box" class="content-box box-sentence"></div>
-            <div id="quiz-box" class="content-box box-quiz">
-                <p id="quiz-question" class="font-bold mb-3 text-lg"></p>
+            <div class="meaning-box justify-text"><p id="modal-meaning" class="justify-text"></p></div>
+            <div id="content-box" class="content-box box-sentence justify-text"></div>
+            <div id="quiz-box" class="content-box box-quiz justify-text">
+                <p id="quiz-question" class="font-bold mb-3 text-lg justify-text"></p>
                 <div id="quiz-options" class="flex flex-col"></div>
             </div>
             <div class="flex justify-center mt-4 w-full gap-2 border-t-2 pt-4" style="border-color: var(--bg-base);" id="modal-buttons">
@@ -439,7 +474,7 @@
             <button onclick="closeLoginModal()" class="close-btn"><i class="fas fa-times"></i></button>
             <i class="fas fa-user-astronaut text-5xl md:text-6xl mb-4 md:mb-6 text-gray-400"></i>
             <h2 class="text-xl md:text-2xl font-black mb-2">請輸入登入資訊</h2>
-            <p class="text-xs md:text-sm font-bold text-gray-400 mb-6 break-words whitespace-normal">格式範例：60105洪天才 (班級+兩碼座號+姓名)</p>
+            <p class="text-xs md:text-sm font-bold text-gray-400 mb-6 break-words whitespace-normal">格式範例：60105洪天才 <span class="no-orphan">(班級+兩碼座號+姓名)</span></p>
             
             <input type="text" id="username-input" class="login-input" placeholder="例如：60105洪天才" autocomplete="off" onkeydown="if(event.key==='Enter') handleLogin()">
             <div id="login-error" class="text-red-500 font-bold text-sm mb-4 h-5 hidden">查無此學生資料，請確認輸入是否正確</div>
@@ -512,20 +547,20 @@
                     <div id="header-msg-area" class="ml-auto text-[1rem] md:text-[1.05rem]"></div>
                 </div>
 
-                <div id="article-container" class="article-box"></div>
+                <div id="article-container" class="article-box justify-text"></div>
             </div>
             
             <div id="fb-words-col" class="words-col hidden">
                 <h3 class="text-lg font-bold text-gray-700 border-b-2 border-gray-200 pb-2">
                     <i class="fas fa-puzzle-piece text-orange-400"></i> 填空選項
                 </h3>
-                <p class="text-xs md:text-sm text-gray-500 font-bold mb-1">請將下方語詞「拖曳」或「點擊」填入對應題號空格（依照文本中的內容填入適當的語詞）。</p>
+                <p class="text-xs md:text-[0.85rem] text-gray-500 font-bold mb-1 justify-text leading-relaxed">請將下方語詞「拖曳」或「點擊」填入對應<span class="no-orphan">題號空格</span>（依照文本中的內容填入<span class="no-orphan">適當的語詞）。</span></p>
                 
                 <div id="word-bank-container" class="word-bank flex-1 content-start"></div>
                 
                 <div id="learning-hints-container" class="w-full mt-2 hidden"></div>
                 
-                <div class="mt-4 pt-4 border-t-2 border-gray-200">
+                <div id="fb-action-area" class="mt-4 pt-4 border-t-2 border-gray-200">
                     <button id="check-ans-btn" onclick="checkAllAnswers()" class="btn w-full hidden" style="background: var(--btn-green); box-shadow: 0 4px 0 var(--btn-green-hover); font-size: 1.1rem; padding: 12px;">
                         <i class="fas fa-tasks"></i> 批改答案
                     </button>
@@ -609,6 +644,24 @@
             '1':  { fontSize: '1.38rem', lineHeight: '2.4', label: '放大(+1)' },
             '2':  { fontSize: '1.58rem', lineHeight: '2.5', label: '極大(+2)' }
         };
+
+        // =========================================================
+        // 防孤字與防孤立標點成行處理函式：
+        // 將每個段落結尾的最後 2~3 個字（含可能的 <u> 專名號）與句尾標點綁定為不可分割群組，
+        // 搭配 CSS text-align: justify 確保左右對齊且絕不出現單一文字或單一標點成行。
+        // =========================================================
+        function preventOrphanText(htmlStr) {
+            if (!htmlStr) return '';
+            return String(htmlStr)
+                .split(/<br\s*\/?>|\r?\n/)
+                .map(line => {
+                    return line.replace(
+                        /((?:<u[^>]*>[^<]+<\/u>|[^\s<>]){2,3}[，。、！？；：）」』》〉”’…—.!?;:)]*)$/i,
+                        '<span class="no-orphan">$1</span>'
+                    );
+                })
+                .join('<br>');
+        }
 
         // =========================================================
         // localStorage 持久化讀寫輔助函式（防誤觸重新整理遺失登入與暫存進度）
@@ -2171,7 +2224,7 @@
             clearSelection();
         }
 
-        // 打開語詞學習視窗時，直接顯示第一句造句並移除等待延遲
+        // 打開語詞學習視窗時，直接顯示第一句造句並套用左右對齊與防孤字處理
         function openModal(word) {
             currentModalWord = word;
             currentSentenceIdx = 0; 
@@ -2179,7 +2232,7 @@
             if (!target) return;
 
             document.getElementById('modal-word').innerText = word;
-            document.getElementById('modal-meaning').innerHTML = target.clue.replace(/\n/g, '<br>');
+            document.getElementById('modal-meaning').innerHTML = preventOrphanText(target.clue);
             document.querySelector('.meaning-box').style.display = 'block';
             document.getElementById('learning-modal').classList.add('show');
 
@@ -2271,7 +2324,7 @@
                 if (type === 'sentence') {
                     quizBox.classList.remove('show');
                     meaningBox.style.display = 'block';
-                    contentBox.className = 'content-box box-sentence show';
+                    contentBox.className = 'content-box box-sentence justify-text show';
 
                     const totalSentences = target.sentences.length;
                     if (!isInitialOpen && contentBox.dataset.activeWord === currentModalWord) {
@@ -2287,14 +2340,14 @@
                             <span><i class="fas fa-quote-left"></i> 例句參考：</span>
                             ${totalSentences > 1 ? `<span class="text-xs bg-white/70 px-2 py-0.5 rounded-full">第 ${displayIdx} / ${totalSentences} 句</span>` : ''}
                         </div>
-                        <div class="text-lg font-bold">${target.sentences[currentSentenceIdx]}</div>
+                        <div class="text-lg font-bold justify-text">${preventOrphanText(target.sentences[currentSentenceIdx])}</div>
                     `;
                 } else if (type === 'quiz') {
                     contentBox.classList.remove('show');
                     contentBox.dataset.activeWord = '';
                     meaningBox.style.display = 'none';
                     quizBox.classList.add('show');
-                    document.getElementById('quiz-question').innerText = target.quiz.question;
+                    document.getElementById('quiz-question').innerHTML = preventOrphanText(target.quiz.question);
 
                     const optsContainer = document.getElementById('quiz-options');
                     optsContainer.innerHTML = '';
@@ -2312,9 +2365,9 @@
 
                     optionsWithIndex.forEach((optObj) => {
                         const div = document.createElement('div');
-                        div.className = 'quiz-option';
+                        div.className = 'quiz-option justify-text';
                         div.dataset.origIdx = String(optObj.originalIndex);
-                        div.innerText = optObj.text;
+                        div.innerHTML = preventOrphanText(optObj.text);
 
                         if (quizStatus[currentModalWord]) {
                             div.style.pointerEvents = 'none';
@@ -2537,7 +2590,17 @@
             // 清除空的 <u></u> 標籤，防止殘留空底線
             aiText = aiText.replace(/<u>\s*(<span class="dropzone"[^>]*><\/span>)\s*<\/u>/g, '$1');
             aiText = aiText.replace(/<u>\s*<\/u>/g, '');
-            articleContainer.innerHTML = aiText.replace(/\n/g, '<br>');
+
+            // 將填空框與前後緊鄰的引號或標點符號綁定，防止標點符號在填空框後被單獨擠到下一行開頭
+            aiText = aiText.replace(/([「『（《〈“‘]?\s*<span class="dropzone"[^>]*><\/span>\s*[」』）》〉”’，。、！？；：…—.!?;:)]*)/g, '<span class="nowrap-zone">$1</span>');
+
+            // 將文章依段落分割並渲染為獨立的左右對齊段落 (<p class="article-para">)，並套用段尾防孤字保護
+            const paragraphsHtml = aiText
+                .split(/\r?\n/)
+                .filter(p => p.trim() !== '')
+                .map(p => `<p class="article-para">${preventOrphanText(p)}</p>`)
+                .join('');
+            articleContainer.innerHTML = paragraphsHtml;
 
             // 依文章閱讀順序為每個空格加上題號 ① ② ③ ...
             const circledNums = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩','⑪','⑫','⑬','⑭','⑮'];
@@ -2773,9 +2836,9 @@
                         const qCircled = zone.dataset.circled || `(${zone.dataset.num || (i + 1)})`;
                         let wrongData = currentLessonData.find(w => w.word === filledWord);
                         if (wrongData) {
-                            wrongWordsHints.push(`<span class="inline-block bg-red-600 text-white text-xs px-2 py-0.5 rounded-full mr-1 font-black">第 ${qCircled} 格</span> 你填了<b>【${filledWord}】</b>：${wrongData.clue}`);
+                            wrongWordsHints.push(`<span class="inline-block bg-red-600 text-white text-xs px-2 py-0.5 rounded-full mr-1 font-black">第 ${qCircled} 格</span> 你填了<b>【${filledWord}】</b>：${preventOrphanText(wrongData.clue)}`);
                         } else {
-                            wrongWordsHints.push(`<span class="inline-block bg-red-600 text-white text-xs px-2 py-0.5 rounded-full mr-1 font-black">第 ${qCircled} 格</span> 你填了<b>【${filledWord}】</b>，請再對照前後文想想看！`);
+                            wrongWordsHints.push(`<span class="inline-block bg-red-600 text-white text-xs px-2 py-0.5 rounded-full mr-1 font-black">第 ${qCircled} 格</span> 你填了<b>【${filledWord}】</b>，請再對照前後文<span class="no-orphan">想想看！</span>`);
                         }
                         
                         setTimeout(() => {
@@ -2835,10 +2898,10 @@
                         headerMsg.innerHTML = '<span class="text-red-500 font-bold animate-pulse inline-block"><i class="fas fa-exclamation-circle"></i> 哎呀，有幾個填錯了！請對照題號重讀前後文</span>';
                         if (wrongWordsHints.length > 0) {
                             let hintHtml = `
-                                <div class="text-left text-[0.92rem] bg-[#FCE8E8] p-3.5 rounded-xl border-2 border-[#F5C6C6] text-[#C0392B]" style="animation: fadeIn 0.5s;">
+                                <div class="justify-text text-[0.92rem] bg-[#FCE8E8] p-3.5 rounded-xl border-2 border-[#F5C6C6] text-[#C0392B]" style="animation: fadeIn 0.5s;">
                                     <div class="font-black mb-2"><i class="fas fa-lightbulb text-yellow-500"></i> 學習提示：對應題號與剛剛填錯的語詞</div>
                                     <ul class="space-y-1.5 font-medium">
-                                        ${wrongWordsHints.map(h => `<li class="leading-relaxed">${h}</li>`).join('')}
+                                        ${wrongWordsHints.map(h => `<li class="leading-relaxed justify-text">${h}</li>`).join('')}
                                     </ul>
                                 </div>
                             `;
