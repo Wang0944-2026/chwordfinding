@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>國語找字遊戲 v9.8</title>
+    <title>國語找字遊戲 v9.9</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -57,7 +57,7 @@
             flex-direction: column;
         }
 
-        /* 通用左右對齊與中文嚴格避頭點排版規則 */
+        /* 通用左右對齊與中文嚴格避頭尾點排版規則 */
         .justify-text {
             text-align: justify;
             text-justify: inter-ideograph;
@@ -212,6 +212,16 @@
 
         .article-box { background: white; padding: 25px; border-radius: 20px; font-size: 1.2rem; line-height: 2.3; color: var(--text-main); border: 2px dashed var(--panel-border); width: 100%; transition: font-size 0.2s ease, line-height 0.2s ease; flex: 1; overflow-y: auto; scroll-behavior: smooth; text-align: justify; text-justify: inter-ideograph; line-break: strict; word-break: normal; overflow-wrap: break-word; text-wrap: pretty; }
 
+        /* 短文首行標題（如《冰星求生》）置中顯示 */
+        .article-title {
+            text-align: center;
+            font-weight: 900;
+            font-size: 1.15em;
+            color: var(--text-main);
+            margin: 0 0 0.55em 0;
+            letter-spacing: 0.05em;
+        }
+
         .article-para {
             text-align: justify;
             text-justify: inter-ideograph;
@@ -219,7 +229,7 @@
             word-break: normal;
             overflow-wrap: break-word;
             text-wrap: pretty;
-            margin: 0 0 0.25em 0;
+            margin: 0 0 0.35em 0;
         }
         .article-para:last-child {
             margin-bottom: 0;
@@ -235,7 +245,7 @@
         }
 
         /* 使用 em 相對單位，讓填空框隨文章字體大小自動等比例縮放，並支援題號 ① ② ③ 顯示 */
-        .dropzone { display: inline-block; min-width: 4.2em; height: 1.9em; margin: 0 0.3em; border-bottom: 3px solid var(--btn-blue); background: #EDF1F4; vertical-align: middle; text-align: center; line-height: 1.9em; border-radius: 8px 8px 0 0; color: var(--btn-blue); font-weight: bold; transition: all 0.25s; cursor: pointer; padding: 0 0.55em; position: relative; font-size: 0.95em; }
+        .dropzone { display: inline-block; min-width: 4.2em; height: 1.9em; margin: 0 0.25em; border-bottom: 3px solid var(--btn-blue); background: #EDF1F4; vertical-align: middle; text-align: center; line-height: 1.9em; border-radius: 8px 8px 0 0; color: var(--btn-blue); font-weight: bold; transition: all 0.25s; cursor: pointer; padding: 0 0.55em; position: relative; font-size: 0.95em; }
         /* 空格尚未填入時顯示題號 ① ② ③，不影響 zone.innerText 判斷 */
         .dropzone:not(.filled):not(.correct)::before {
             content: attr(data-circled);
@@ -295,7 +305,7 @@
 </head>
 <body>
 
-    <div class="footer-version">大榮老師製作 © 2026 | Version 9.8 (v9.8)</div>
+    <div class="footer-version">大榮老師製作 © 2026 | Version 9.9 (v9.9)</div>
 
     <div id="init-loader">
         <i class="fas fa-circle-notch fa-spin text-5xl mb-4" style="color: var(--btn-blue)"></i>
@@ -343,10 +353,10 @@
             <h1 id="game-title" class="text-lg md:text-2xl font-bold tracking-wider m-0 shrink-0 px-2 whitespace-nowrap">單元名稱</h1>
             
             <div class="flex items-center gap-2 md:gap-3 shrink-0 ml-auto">
-                <button id="refresh-essay-btn" onclick="refreshEssay()" class="back-btn hidden" style="color: var(--btn-purple); border-color: var(--btn-purple); padding: 4px 12px md:padding: 8px 16px;">
+                <button id="refresh-essay-btn" onclick="refreshEssay()" class="back-btn hidden px-3 py-1 md:px-4 md:py-2" style="color: var(--btn-purple); border-color: var(--btn-purple);">
                     <i class="fas fa-magic"></i> <span class="hidden md:inline">重整閱讀題</span>
                 </button>
-                <button onclick="restartCurrentUnit()" class="back-btn" style="color: var(--btn-green); border-color: var(--btn-green); padding: 4px 12px md:padding: 8px 16px;">
+                <button onclick="restartCurrentUnit()" class="back-btn px-3 py-1 md:px-4 md:py-2" style="color: var(--btn-green); border-color: var(--btn-green);">
                     <i class="fas fa-redo-alt"></i> <span class="hidden md:inline">重玩</span>
                 </button>
                 <div id="timer-pill-box" class="flex items-center gap-1 md:gap-2 font-bold text-sm md:text-lg px-3 py-1 md:px-4 rounded-full bg-white border-2 transition-colors" style="border-color: var(--panel-border);">
@@ -656,7 +666,7 @@
                 .split(/<br\s*\/?>|\r?\n/)
                 .map(line => {
                     return line.replace(
-                        /((?:<u[^>]*>[^<]+<\/u>|[^\s<>]){2,3}[，。、！？；：）」』》〉”’…—.!?;:)]*)$/i,
+                        /((?:<u[^>]*>[^<>]+<\/u>|[^<\s>　，。、！？；：「」『』（）《》〈〉”’…—.!?;:)]){2,3}[，。、！？；：）」』》〉”’…—.!?;:)]*)$/i,
                         '<span class="no-orphan">$1</span>'
                     );
                 })
@@ -2550,6 +2560,17 @@
             // 支援先將可能殘留的 Unicode 組合底線字元轉為 <u> 標籤，以便進行閉合保護
             aiText = aiText.replace(/(?:[^\u0332\u0331\u0333\ufe20-\ufe23\r\n<>][\u0332\u0331\u0333\ufe20-\ufe23]+)+/g, m => '<u>' + m.replace(/[\u0332\u0331\u0333\ufe20-\ufe23]/g, '') + '</u>');
 
+            // 分離首行標題（如《冰星求生》）與內文段落，避免篇名被挖空或靠左對齊
+            let rawLines = aiText.split(/\r?\n/).filter(l => l.trim() !== '');
+            let storyTitleLine = '';
+            if (rawLines.length > 1) {
+                let firstPlain = rawLines[0].replace(/<\/?u>/gi, '').trim();
+                if (/^[《〈][^》〉]+[》〉]$/.test(firstPlain) || (firstPlain.length <= 14 && !/[，。！？；：]/.test(firstPlain))) {
+                    storyTitleLine = rawLines.shift().trim();
+                }
+            }
+            aiText = rawLines.join('\n');
+
             let wordsToBank = [];
             let sortedWords = [...allWords].sort((a,b) => b.length - a.length);
 
@@ -2591,16 +2612,22 @@
             aiText = aiText.replace(/<u>\s*(<span class="dropzone"[^>]*><\/span>)\s*<\/u>/g, '$1');
             aiText = aiText.replace(/<u>\s*<\/u>/g, '');
 
-            // 將填空框與前後緊鄰的引號或標點符號綁定，防止標點符號在填空框後被單獨擠到下一行開頭
-            aiText = aiText.replace(/([「『（《〈“‘]?\s*<span class="dropzone"[^>]*><\/span>\s*[」』）》〉”’，。、！？；：…—.!?;:)]*)/g, '<span class="nowrap-zone">$1</span>');
-
-            // 將文章依段落分割並渲染為獨立的左右對齊段落 (<p class="article-para">)，並套用段尾防孤字保護
+            // 將文章依段落分割，若首行為篇名則置中渲染 (<div class="article-title">)，內文段落則套用左右對齊、標點綁定與段尾防孤字保護
+            const titleHtml = storyTitleLine ? `<div class="article-title">${storyTitleLine}</div>` : '';
             const paragraphsHtml = aiText
                 .split(/\r?\n/)
                 .filter(p => p.trim() !== '')
-                .map(p => `<p class="article-para">${preventOrphanText(p)}</p>`)
+                .map(p => {
+                    let processedP = preventOrphanText(p);
+                    // 在單一段落內將填空框與前後緊鄰的引號或標點符號綁定，不跨行也不吞噬段首全形縮排空白
+                    processedP = processedP.replace(
+                        /([「『（《〈“‘]?<span class="dropzone"[^>]*><\/span>[」』）》〉”’，。、！？；：…—.!?;:)]*)/g,
+                        '<span class="nowrap-zone">$1</span>'
+                    );
+                    return `<p class="article-para">${processedP}</p>`;
+                })
                 .join('');
-            articleContainer.innerHTML = paragraphsHtml;
+            articleContainer.innerHTML = titleHtml + paragraphsHtml;
 
             // 依文章閱讀順序為每個空格加上題號 ① ② ③ ...
             const circledNums = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩','⑪','⑫','⑬','⑭','⑮'];
