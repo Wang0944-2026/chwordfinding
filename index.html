@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>國語找字遊戲 v10.2</title>
+    <title>國語找字遊戲 v10.4</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -305,7 +305,7 @@
 </head>
 <body>
 
-    <div class="footer-version">大榮老師製作 © 2026 | Version 10.2 (v10.2)</div>
+    <div class="footer-version">大榮老師製作 © 2026 | Version 10.4 (v10.4)</div>
 
     <div id="init-loader">
         <i class="fas fa-circle-notch fa-spin text-5xl mb-4" style="color: var(--btn-blue)"></i>
@@ -387,7 +387,7 @@
                     <i class="fas fa-star" style="color: var(--btn-orange)"></i> 
                     <span>分數：<span id="score-display">0</span> 分</span>
                 </div>
-                <div class="target-score-pill inline-flex items-center gap-1.5 font-bold text-xs sm:text-sm lg:text-base px-3.5 lg:px-4 py-1.5 rounded-full bg-white border-2 whitespace-nowrap shrink-0" style="border-color: var(--panel-border);" title="達到單元滿分 90% 即為達標">
+                <div class="target-score-pill inline-flex items-center gap-1.5 font-bold text-xs sm:text-sm lg:text-base px-3.5 lg:px-4 py-1.5 rounded-full bg-white border-2 whitespace-nowrap shrink-0" style="border-color: var(--panel-border);" title="達到單元目標分數即為達標">
                     <i class="fas fa-bullseye text-red-400"></i>
                     <span class="text-gray-500">目標分數：</span>
                     <span id="target-score-display" class="text-red-500">0</span>
@@ -422,14 +422,13 @@
         </div>
     </div>
 
-    <!-- 開發者除錯面板（懸浮於畫面最上層，支援滑鼠與觸控任意拖曳位置） -->
-    <div id="debug-panel" class="hidden fixed bottom-10 left-4 z-[10010] bg-gray-900/90 backdrop-blur-md text-white p-3.5 rounded-2xl border-2 border-gray-500/80 flex-col gap-2 shadow-2xl select-none cursor-grab" style="touch-action: none;">
-        <div id="debug-panel-handle" class="text-xs font-bold text-yellow-400 mb-0.5 flex items-center justify-between gap-3 border-b border-gray-700 pb-1.5" title="按住面板可任意拖曳移動位置">
+    <!-- 開發者測試工具（寬度依據文字長度自動調整） -->
+    <div id="debug-panel" class="hidden fixed bottom-10 left-4 z-[10010] w-max bg-gray-900/90 backdrop-blur-md text-white p-3.5 rounded-2xl border-2 border-gray-500/80 flex-col gap-2 shadow-2xl select-none cursor-grab" style="touch-action: none; width: max-content;">
+        <div id="debug-panel-handle" class="text-xs font-bold text-yellow-400 mb-0.5 flex items-center gap-2 border-b border-gray-700 pb-1.5 whitespace-nowrap">
             <span><i class="fas fa-tools"></i> 開發者測試工具</span>
-            <span class="text-[11px] text-gray-300 bg-gray-800 px-1.5 py-0.5 rounded flex items-center gap-1"><i class="fas fa-arrows-alt"></i> 可拖曳</span>
         </div>
-        <button type="button" onclick="debugCompletePhase1()" class="bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded-lg text-sm transition text-left cursor-pointer">1. 一鍵完成找字</button>
-        <button type="button" onclick="debugCompletePhase2()" class="bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded-lg text-sm transition text-left cursor-pointer">2. 一鍵填入短文</button>
+        <button type="button" onclick="debugCompletePhase1()" class="bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded-lg text-sm transition text-left cursor-pointer whitespace-nowrap w-full">1. 一鍵完成找字</button>
+        <button type="button" onclick="debugCompletePhase2()" class="bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded-lg text-sm transition text-left cursor-pointer whitespace-nowrap w-full">2. 一鍵填入短文</button>
     </div>
 
     <!-- 學習 Modal -->
@@ -475,7 +474,7 @@
                 </div>
             </div>
 
-            <!-- 明確顯示是否達成 90% 目標門檻提示 -->
+            <!-- 明確顯示是否達成目標門檻提示 -->
             <div id="final-threshold-status" class="w-full rounded-xl p-3 mb-3 text-sm font-bold text-center border-2"></div>
 
             <div id="upload-status" class="text-sm font-bold text-gray-400 mb-4"><i class="fas fa-spinner fa-spin"></i> 正在將成績上傳至雲端排行榜...</div>
@@ -605,9 +604,9 @@
         const GAS_API_URL = "https://script.google.com/macros/s/AKfycbw3aOu9AJzVDdcmWBs9IPrnFClLD_UBnV4NgPlSW5h8PSLxAGkYUFcwnlLpaoYL4466/exec";
         
         // localStorage 儲存鍵值 (綁定版本與日期防呆保護)
-        const LS_KEY_AUTH = "chword_auth_v102";
-        const LS_KEY_SAVES = "chword_saves_v102";
-        const LS_KEY_RECORDS = "chword_records_v102";
+        const LS_KEY_AUTH = "chword_auth_v104";
+        const LS_KEY_SAVES = "chword_saves_v104";
+        const LS_KEY_RECORDS = "chword_records_v104";
 
         let unitList = []; 
         let allWordData = []; 
@@ -645,6 +644,8 @@
         let pendingUnit = null; 
 
         let adminWhitelist = [];
+        let customTargetUsers = [];
+        let customTargetRatios = {};
         let isAdmin = false;
         
         let uniqueClasses = [];
@@ -859,10 +860,28 @@
             setTimeout(() => { if (inputEl) inputEl.focus(); }, 100);
         }
 
+        // 依據後端「學生名單」D欄設定之百分比動態取得達標比例（預設 90%，前端完全無標籤化呈現）
+        function getUserPassRatio(username) {
+            if (!username) return 0.90;
+            const cleanUser = String(username).replace(/\s+/g, '');
+            if (customTargetRatios && customTargetRatios[cleanUser] !== undefined) {
+                const r = Number(customTargetRatios[cleanUser]);
+                if (!isNaN(r) && r > 0 && r <= 1) return r;
+            }
+            const normalizedCustom = customTargetUsers.map(u => String(u).replace(/\s+/g, ''));
+            return normalizedCustom.includes(cleanUser) ? 0.80 : 0.90;
+        }
+
+        function getUserTargetScore(unitName, username) {
+            const maxS = getUnitMaxScore(unitName);
+            const ratio = getUserPassRatio(username || currentUser);
+            return Math.ceil(maxS * ratio);
+        }
+
         // 更新遊戲頂部「達標目標分數」與目前得分達標狀態樣式
         function updateTargetScoreDisplay(unitName) {
             const maxS = getUnitMaxScore(unitName);
-            const targetS = Math.ceil(maxS * 0.90);
+            const targetS = getUserTargetScore(unitName, currentUser);
             const targetEl = document.getElementById('target-score-display');
             if (targetEl) {
                 targetEl.innerText = targetS;
@@ -1103,6 +1122,8 @@
                 globalLeaderboard = data.leaderboard || []; 
                 studentWhitelist = data.whitelist || [];
                 adminWhitelist = data.adminList || [];
+                customTargetUsers = data.customTargetUsers || [];
+                customTargetRatios = data.customTargetRatios || {};
                 
                 let classesSet = new Set();
                 studentsByClass = {};
@@ -1171,7 +1192,7 @@
             
             if (isValid) {
                 currentUser = rawInput;
-                // 嚴格依據後端「學生名單」中身份別是否有打勾（Ｖ）來決定是否進入開發者模式
+                // 嚴格依據後端「學生名單」E欄（管理員）是否有打勾來決定是否進入開發者模式
                 isAdmin = normalizedAdminList.includes(currentUser);
                 saveStateToLocalStorage();
                 
@@ -1180,7 +1201,7 @@
                     if (isAdmin) {
                         debugPanel.classList.remove('hidden');
                         debugPanel.style.display = 'flex';
-                        showToast("<i class='fas fa-tools text-yellow-400'></i> 已啟用開發者測試模式（可拖曳懸浮工具列）");
+                        showToast("<i class='fas fa-tools text-yellow-400'></i> 已啟用開發者測試模式");
                     } else {
                         debugPanel.classList.add('hidden');
                         debugPanel.style.display = 'none';
@@ -1374,11 +1395,11 @@
             
             if (infoEl) {
                 if (unitFilter === 'all') {
-                    infoEl.innerHTML = `<span><i class="fas fa-info-circle text-blue-400"></i> 依各單元總分計算</span><span class="text-red-500"><i class="fas fa-square"></i> 紅底標記：未達該單元總分 90%</span>`;
+                    infoEl.innerHTML = `<span><i class="fas fa-info-circle text-blue-400"></i> 依各單元總分計算</span><span class="text-red-500"><i class="fas fa-square"></i> 紅底標記：未達目標分數</span>`;
                 } else {
                     const maxS = getUnitMaxScore(unitFilter);
-                    const passS = Math.ceil(maxS * 0.90);
-                    infoEl.innerHTML = `<span>單元總分：<b>${maxS}</b> 分 (90%達標：<b>${passS}</b> 分)</span><span class="text-red-500"><i class="fas fa-square"></i> 未達 90%</span>`;
+                    const passS = getUserTargetScore(unitFilter, currentUser);
+                    infoEl.innerHTML = `<span>單元總分：<b>${maxS}</b> 分 (目標分數：<b>${passS}</b> 分)</span><span class="text-red-500"><i class="fas fa-square"></i> 未達標</span>`;
                 }
             }
 
@@ -1411,11 +1432,11 @@
                     return a.time - b.time; 
                 } else {
                     // 「依時間排序」加入「達標優先原則」：
-                    // 已達 90% 門檻（合格）的學生排在前半部，未達 90% 門檻（紅底）的學生統一排在合格學生之後
+                    // 已達個人目標分數（合格）的學生排在前半部，未達標的學生統一排在合格學生之後
                     const maxA = getUnitMaxScore(a.unit);
-                    const passA = maxA > 0 ? (a.score >= Math.ceil(maxA * 0.90)) : true;
+                    const passA = maxA > 0 ? (a.score >= getUserTargetScore(a.unit, a.username)) : true;
                     const maxB = getUnitMaxScore(b.unit);
-                    const passB = maxB > 0 ? (b.score >= Math.ceil(maxB * 0.90)) : true;
+                    const passB = maxB > 0 ? (b.score >= getUserTargetScore(b.unit, b.username)) : true;
                     if (passA !== passB) return passA ? -1 : 1;
 
                     if (a.time !== b.time) return a.time - b.time; 
@@ -1436,12 +1457,12 @@
                 else if (index === 2) badgeColor = '#D35400'; 
                 
                 const maxScore = getUnitMaxScore(item.unit);
-                const thresholdScore = Math.ceil(maxScore * 0.90);
+                const thresholdScore = getUserTargetScore(item.unit, item.username);
                 const isBelowThreshold = maxScore > 0 && item.score < thresholdScore;
                 
                 const rowClass = isBelowThreshold ? 'rank-row below-threshold' : 'rank-row';
                 const scoreColorClass = isBelowThreshold ? 'text-red-600' : 'text-orange-500';
-                const warningBadge = isBelowThreshold ? `<span class="text-[0.7rem] bg-red-100 text-red-600 px-2 py-0.5 rounded-full ml-2 border border-red-200 font-bold">未達90%</span>` : '';
+                const warningBadge = isBelowThreshold ? `<span class="text-[0.7rem] bg-red-100 text-red-600 px-2 py-0.5 rounded-full ml-2 border border-red-200 font-bold">未達標</span>` : '';
 
                 listEl.innerHTML += `
                     <div class="${rowClass}">
@@ -1451,7 +1472,7 @@
                                 <div class="font-black ${isBelowThreshold ? 'text-red-700' : 'text-gray-700'} flex items-center">
                                     ${item.username} ${warningBadge}
                                 </div>
-                                ${unitFilter === 'all' ? `<div class="text-xs text-gray-400 font-bold">${item.unit} (90%門檻: ${thresholdScore}分)</div>` : ''}
+                                ${unitFilter === 'all' ? `<div class="text-xs text-gray-400 font-bold">${item.unit}</div>` : ''}
                             </div>
                         </div>
                         <div class="text-right font-bold flex flex-col items-end">
@@ -2971,7 +2992,7 @@
             }
         }
 
-        // 過關結算視窗：明確顯示是否達成 90% 門檻、即時更新記憶體英雄榜，並提供快捷操作按鈕
+        // 過關結算視窗：明確顯示是否達成目標門檻（無標籤化差異）、即時更新記憶體英雄榜，並提供快捷操作按鈕
         function showGameOverModal(finalScore, finalTime) {
             if (currentUser && currentLessonName) {
                 delete savedGameStates[getSaveKey(currentUser, currentLessonName)];
@@ -3005,18 +3026,17 @@
             document.getElementById('final-score').innerText = finalScore;
             document.getElementById('final-time').innerText = formatTime(finalTime);
 
-            // 計算並顯示是否達成 90% 目標門檻
-            const maxS = getUnitMaxScore(currentLessonName);
-            const targetS = Math.ceil(maxS * 0.90);
+            // 計算並顯示是否達成目標門檻（僅顯示目標分數數值，無任何標籤或百分比差異文字）
+            const targetS = getUserTargetScore(currentLessonName, currentUser);
             const thresholdBox = document.getElementById('final-threshold-status');
             if (thresholdBox) {
                 if (targetS > 0 && finalScore >= targetS) {
                     thresholdBox.className = "w-full rounded-xl p-3 mb-3 text-sm font-bold text-center border-2 bg-green-50 border-green-300 text-green-700";
-                    thresholdBox.innerHTML = `🎉 恭喜達成 90% 目標門檻<span class="no-orphan">（目標：${targetS} 分）！</span>`;
+                    thresholdBox.innerHTML = `🎉 恭喜達成目標門檻<span class="no-orphan">（目標：${targetS} 分）！</span>`;
                 } else if (targetS > 0) {
                     const diff = targetS - finalScore;
                     thresholdBox.className = "w-full rounded-xl p-3 mb-3 text-sm font-bold text-center border-2 bg-red-50 border-red-300 text-red-600";
-                    thresholdBox.innerHTML = `💪 距離 90% 達標門檻（${targetS} 分）還差 <b>${diff}</b> 分，<span class="no-orphan">建議再挑戰一次！</span>`;
+                    thresholdBox.innerHTML = `💪 距離達標門檻（${targetS} 分）還差 <b>${diff}</b> 分，<span class="no-orphan">建議再挑戰一次！</span>`;
                 } else {
                     thresholdBox.className = "hidden";
                 }
@@ -3156,7 +3176,7 @@
             showToast("已啟動：一鍵填寫並批改！");
         }
 
-        // 初始化「開發者測試工具」自由懸浮拖曳功能（支援滑鼠與觸控）
+        // 初始化「開發者測試工具」懸浮移動功能（支援滑鼠與觸控）
         (function initDraggableDebugPanel() {
             const panel = document.getElementById('debug-panel');
             if (!panel) return;
