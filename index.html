@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>國語找字遊戲 v10.1</title>
+    <title>國語找字遊戲 v10.2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -305,7 +305,7 @@
 </head>
 <body>
 
-    <div class="footer-version">大榮老師製作 © 2026 | Version 10.1 (v10.1)</div>
+    <div class="footer-version">大榮老師製作 © 2026 | Version 10.2 (v10.2)</div>
 
     <div id="init-loader">
         <i class="fas fa-circle-notch fa-spin text-5xl mb-4" style="color: var(--btn-blue)"></i>
@@ -457,14 +457,14 @@
 
     <!-- 結算 Modal -->
     <div id="game-over-modal" class="modal-overlay">
-        <div class="modal-content overflow-hidden" style="width: 400px; padding: 40px 30px;">
+        <div class="modal-content overflow-hidden" style="width: 440px; max-width: 92%; padding: 38px 26px 26px 26px;">
             <div class="modal-header-bar" style="background: var(--btn-orange)"></div>
             <button onclick="document.getElementById('game-over-modal').classList.remove('show')" class="close-btn"><i class="fas fa-times"></i></button>
             
-            <i class="fas fa-trophy text-6xl mb-4 mt-2 text-yellow-400" style="filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));"></i>
-            <h2 class="text-3xl font-black mb-6 text-gray-700">過關！</h2>
+            <i class="fas fa-trophy text-6xl mb-3 mt-1 text-yellow-400" style="filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));"></i>
+            <h2 class="text-3xl font-black mb-4 text-gray-700">過關！</h2>
             
-            <div class="bg-gray-50 rounded-2xl p-5 w-full border-2 border-gray-100 mb-2">
+            <div class="bg-gray-50 rounded-2xl p-4 w-full border-2 border-gray-100 mb-3">
                 <div class="flex justify-between items-center mb-3">
                     <span class="text-gray-500 font-bold text-lg"><i class="fas fa-star text-orange-400"></i> 總得分</span>
                     <span class="text-2xl font-black text-orange-500" id="final-score">0</span>
@@ -474,7 +474,26 @@
                     <span class="text-xl font-bold text-blue-500" id="final-time">00:00</span>
                 </div>
             </div>
-            <div id="upload-status" class="text-sm font-bold text-gray-400 mt-2"><i class="fas fa-spinner fa-spin"></i> 正在將成績上傳至雲端排行榜...</div>
+
+            <!-- 明確顯示是否達成 90% 目標門檻提示 -->
+            <div id="final-threshold-status" class="w-full rounded-xl p-3 mb-3 text-sm font-bold text-center border-2"></div>
+
+            <div id="upload-status" class="text-sm font-bold text-gray-400 mb-4"><i class="fas fa-spinner fa-spin"></i> 正在將成績上傳至雲端排行榜...</div>
+
+            <!-- 底部快捷操作按鈕 -->
+            <div class="flex flex-col gap-2 w-full border-t-2 border-gray-100 pt-3">
+                <button type="button" onclick="openLeaderboardFromGameOver()" class="btn w-full !m-0 py-2.5 text-base" style="background: var(--btn-orange); box-shadow: 0 4px 0 var(--btn-orange-hover);">
+                    <i class="fas fa-trophy text-yellow-100"></i> 🏆 查看英雄榜
+                </button>
+                <div class="flex gap-2 w-full mt-1">
+                    <button type="button" onclick="replayFromGameOver()" class="btn flex-1 !m-0 py-2.5 text-sm" style="background: var(--btn-green); box-shadow: 0 4px 0 var(--btn-green-hover);">
+                        <i class="fas fa-redo-alt"></i> 🔄 再玩一次
+                    </button>
+                    <button type="button" onclick="lobbyFromGameOver()" class="btn flex-1 !m-0 py-2.5 text-sm" style="background: var(--btn-blue); box-shadow: 0 4px 0 var(--btn-blue-hover);">
+                        <i class="fas fa-home"></i> 🏠 回大廳
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -586,9 +605,9 @@
         const GAS_API_URL = "https://script.google.com/macros/s/AKfycbw3aOu9AJzVDdcmWBs9IPrnFClLD_UBnV4NgPlSW5h8PSLxAGkYUFcwnlLpaoYL4466/exec";
         
         // localStorage 儲存鍵值 (綁定版本與日期防呆保護)
-        const LS_KEY_AUTH = "chword_auth_v101";
-        const LS_KEY_SAVES = "chword_saves_v101";
-        const LS_KEY_RECORDS = "chword_records_v101";
+        const LS_KEY_AUTH = "chword_auth_v102";
+        const LS_KEY_SAVES = "chword_saves_v102";
+        const LS_KEY_RECORDS = "chword_records_v102";
 
         let unitList = []; 
         let allWordData = []; 
@@ -634,7 +653,7 @@
         // 暫存已登入使用者的各單元進行中紀錄（退回大廳或重整網頁時保留進度與時間）
         let savedGameStates = {};
 
-        // 當局獨立 Session ID 與成績上傳 Promise 佇列（確保第一階段與第二階段成績順序一致、不覆蓋歷史高分）
+        // 當局獨立 Session ID 與成績上傳 Promise 佇列
         let currentSessionId = "";
         let scoreUploadQueue = Promise.resolve();
 
@@ -1189,15 +1208,22 @@
             }
         }
 
-        function openLeaderboardModal() {
+        // 開啟排行榜時智慧設定預設單元：
+        // 1. 若在某個單元內（或剛打完某課），自動預設選中「目前單元 (currentLessonName)」
+        // 2. 若在大廳打開，自動預設選中「最新開放的單元（unitList 最後一課）」
+        function openLeaderboardModal(preferredUnit) {
             const select = document.getElementById('leaderboard-unit-select');
-            const prevValue = select.value;
             select.innerHTML = '<option value="all">🏆 綜合全單元排行 🏆</option>';
             unitList.forEach(item => {
                 select.innerHTML += `<option value="${item.name}">${item.name}</option>`;
             });
-            if (prevValue && Array.from(select.options).some(o => o.value === prevValue)) {
-                select.value = prevValue;
+
+            const gameCont = document.getElementById('game-container');
+            const isInGame = gameCont && gameCont.style.display !== 'none' && currentLessonName;
+
+            let targetDefault = preferredUnit || (isInGame ? currentLessonName : (unitList.length > 0 ? unitList[unitList.length - 1].name : 'all'));
+            if (targetDefault && Array.from(select.options).some(o => o.value === targetDefault)) {
+                select.value = targetDefault;
             }
             
             renderLeaderboard();
@@ -1384,6 +1410,14 @@
                     if (b.score !== a.score) return b.score - a.score; 
                     return a.time - b.time; 
                 } else {
+                    // 「依時間排序」加入「達標優先原則」：
+                    // 已達 90% 門檻（合格）的學生排在前半部，未達 90% 門檻（紅底）的學生統一排在合格學生之後
+                    const maxA = getUnitMaxScore(a.unit);
+                    const passA = maxA > 0 ? (a.score >= Math.ceil(maxA * 0.90)) : true;
+                    const maxB = getUnitMaxScore(b.unit);
+                    const passB = maxB > 0 ? (b.score >= Math.ceil(maxB * 0.90)) : true;
+                    if (passA !== passB) return passA ? -1 : 1;
+
                     if (a.time !== b.time) return a.time - b.time; 
                     return b.score - a.score; 
                 }
@@ -1448,13 +1482,11 @@
             return `${device} - ${browser}`;
         }
 
-        // 以 Promise 佇列確保第一階段 (append) 與第二階段 (updateLast) 依序上傳不衝突，並附帶當局 sessionId
-        function submitScoreToServer(finalScore, finalTime, isSilent = false) {
+        // 統一在完成全部關卡時以 Upsert (一人一課一列最高分) 上傳成績至雲端排行榜
+        function submitScoreToServer(finalScore, finalTime) {
             if (isAdmin) {
-                if (!isSilent) {
-                    const statusEl = document.getElementById('upload-status');
-                    if (statusEl) statusEl.innerHTML = '<i class="fas fa-shield-alt text-blue-500"></i> 開發者測試：成績不寫入後台';
-                }
+                const statusEl = document.getElementById('upload-status');
+                if (statusEl) statusEl.innerHTML = '<i class="fas fa-shield-alt text-blue-500"></i> 開發者測試：成績不寫入後台';
                 return Promise.resolve();
             }
 
@@ -1479,7 +1511,7 @@
                     time: finalTime,
                     timestamp: timestamp,
                     device: getDeviceBrowserInfo(),
-                    updateType: isSilent ? "append" : "updateLast",
+                    updateType: "upsert",
                     sessionId: sessionSnapshot
                 };
 
@@ -1494,10 +1526,8 @@
                         });
                         
                         if (response.ok) {
-                            if (!isSilent) {
-                                const statusEl = document.getElementById('upload-status');
-                                if (statusEl) statusEl.innerHTML = '<i class="fas fa-check-circle text-green-500"></i> 成績已成功上傳！';
-                            }
+                            const statusEl = document.getElementById('upload-status');
+                            if (statusEl) statusEl.innerHTML = '<i class="fas fa-check-circle text-green-500"></i> 成績已成功上傳至雲端英雄榜！';
                             syncLeaderboard(false);
                             uploadSuccess = true;
                             break; 
@@ -1508,7 +1538,7 @@
                     if (i < 2) await new Promise(r => setTimeout(r, 1000));
                 }
 
-                if (!uploadSuccess && !isSilent) {
+                if (!uploadSuccess) {
                     const statusEl = document.getElementById('upload-status');
                     if (statusEl) statusEl.innerHTML = '<i class="fas fa-exclamation-triangle text-red-500"></i> 上傳失敗，請檢查網路連線。';
                 }
@@ -1709,7 +1739,7 @@
             placedWordsInfo = JSON.parse(JSON.stringify(saved.placedWordsInfo));
             foundWords = [...saved.foundWords];
             perfectWords = [...saved.perfectWords];
-            quizStatus = JSON.parse(JSON.stringify(quizStatus));
+            quizStatus = JSON.parse(JSON.stringify(saved.quizStatus || {}));
             score = saved.score;
             timeElapsed = saved.timeElapsed;
             isEndGameTriggered = saved.isEndGameTriggered;
@@ -1809,7 +1839,10 @@
         function returnToLobby() {
             if (currentUser && currentLessonName) {
                 saveCurrentGameProgress();
-                showToast('<i class="fas fa-pause-circle text-blue-400"></i> 已暫存目前找字進度並暫停計時');
+                const hasSaved = Boolean(savedGameStates[getSaveKey(currentUser, currentLessonName)]);
+                if (hasSaved) {
+                    showToast('<i class="fas fa-pause-circle text-blue-400"></i> 已暫存目前找字進度並暫停計時');
+                }
             }
             stopTimer();
             renderLobby();
@@ -2268,6 +2301,7 @@
             checkPhase1End();
         }
 
+        // 第一階段結束時僅本機保存進度並鎖定時間，不提前上傳雲端，確保「未完成名單」100% 精準代表尚未完成全部關卡的學生
         function checkPhase1End() {
             if (foundWords.length === currentLessonData.length && !isEndGameTriggered) {
                 isEndGameTriggered = true; 
@@ -2275,7 +2309,6 @@
                 updateTimerLockUI(true);
                 saveCurrentGameProgress();
                 
-                submitScoreToServer(score, timeElapsed, true); 
                 showToast('<i class="fas fa-lock text-green-400"></i> 找字完成，計時已停止！請進行閱讀測驗。');
                 
                 document.getElementById('refresh-essay-btn').classList.remove('hidden');
@@ -2466,9 +2499,7 @@
             const countOpenTags = (str) => (str.match(/<u>/gi) || []).length;
             const countCloseTags = (str) => (str.match(/<\/u>/gi) || []).length;
 
-            // 若在匹配點之前有尚未閉合的 <u>，代表此語詞起點位於 <u> 內部，需在空格前先補上 </u>
             const isOpenBefore = countOpenTags(prefix) > countCloseTags(prefix);
-            // 若在匹配點結束後仍有尚未閉合的 <u>，代表 </u> 在語詞後方，需在空格後重新開啟 <u>
             const isOpenAfter = countOpenTags(prefixAndMatch) > countCloseTags(prefixAndMatch);
 
             const closeBefore = isOpenBefore ? '</u>' : '';
@@ -2940,8 +2971,8 @@
             }
         }
 
+        // 過關結算視窗：明確顯示是否達成 90% 門檻、即時更新記憶體英雄榜，並提供快捷操作按鈕
         function showGameOverModal(finalScore, finalTime) {
-            // 單元已完成過關，清除中途暫存進度並更新最高分紀錄至 localStorage
             if (currentUser && currentLessonName) {
                 delete savedGameStates[getSaveKey(currentUser, currentLessonName)];
             }
@@ -2951,19 +2982,70 @@
             }
             saveStateToLocalStorage();
 
+            // 過關瞬間先在前端記憶體即時更新 globalLeaderboard，讓學生點開英雄榜時零延遲看到自己的最新名次
+            if (!isAdmin && currentUser && currentLessonName) {
+                const existingIdx = globalLeaderboard.findIndex(item => item.unit === currentLessonName && item.username === currentUser);
+                if (existingIdx !== -1) {
+                    const prev = globalLeaderboard[existingIdx];
+                    if (finalScore > prev.score || (finalScore === prev.score && finalTime < prev.time)) {
+                        globalLeaderboard[existingIdx] = { ...prev, score: finalScore, time: finalTime };
+                    }
+                } else {
+                    globalLeaderboard.push({
+                        unit: currentLessonName,
+                        username: currentUser,
+                        score: finalScore,
+                        time: finalTime,
+                        timestamp: ''
+                    });
+                }
+            }
+
             const modal = document.getElementById('game-over-modal');
             document.getElementById('final-score').innerText = finalScore;
             document.getElementById('final-time').innerText = formatTime(finalTime);
+
+            // 計算並顯示是否達成 90% 目標門檻
+            const maxS = getUnitMaxScore(currentLessonName);
+            const targetS = Math.ceil(maxS * 0.90);
+            const thresholdBox = document.getElementById('final-threshold-status');
+            if (thresholdBox) {
+                if (targetS > 0 && finalScore >= targetS) {
+                    thresholdBox.className = "w-full rounded-xl p-3 mb-3 text-sm font-bold text-center border-2 bg-green-50 border-green-300 text-green-700";
+                    thresholdBox.innerHTML = `🎉 恭喜達成 90% 目標門檻<span class="no-orphan">（目標：${targetS} 分）！</span>`;
+                } else if (targetS > 0) {
+                    const diff = targetS - finalScore;
+                    thresholdBox.className = "w-full rounded-xl p-3 mb-3 text-sm font-bold text-center border-2 bg-red-50 border-red-300 text-red-600";
+                    thresholdBox.innerHTML = `💪 距離 90% 達標門檻（${targetS} 分）還差 <b>${diff}</b> 分，<span class="no-orphan">建議再挑戰一次！</span>`;
+                } else {
+                    thresholdBox.className = "hidden";
+                }
+            }
             
             if (isAdmin) {
                 document.getElementById('upload-status').innerHTML = '<i class="fas fa-shield-alt text-blue-400"></i> 開發者測試：成績不寫入後台';
             } else {
                 document.getElementById('upload-status').innerHTML = '<i class="fas fa-spinner fa-spin text-blue-400"></i> 正在將成績上傳至雲端排行榜...';
-                submitScoreToServer(finalScore, finalTime, false);
+                submitScoreToServer(finalScore, finalTime);
             }
             
             modal.classList.add('show');
             showWinEffect();
+        }
+
+        function openLeaderboardFromGameOver() {
+            document.getElementById('game-over-modal').classList.remove('show');
+            openLeaderboardModal(currentLessonName);
+        }
+
+        function replayFromGameOver() {
+            document.getElementById('game-over-modal').classList.remove('show');
+            restartCurrentUnit();
+        }
+
+        function lobbyFromGameOver() {
+            document.getElementById('game-over-modal').classList.remove('show');
+            returnToLobby();
         }
 
         function showWinEffect() {
