@@ -586,9 +586,9 @@
         const GAS_API_URL = "https://script.google.com/macros/s/AKfycbw3aOu9AJzVDdcmWBs9IPrnFClLD_UBnV4NgPlSW5h8PSLxAGkYUFcwnlLpaoYL4466/exec";
         
         // localStorage 儲存鍵值 (綁定版本與日期防呆保護)
-        const LS_KEY_AUTH = "chword_auth_v95";
-        const LS_KEY_SAVES = "chword_saves_v95";
-        const LS_KEY_RECORDS = "chword_records_v95";
+        const LS_KEY_AUTH = "chword_auth_v100";
+        const LS_KEY_SAVES = "chword_saves_v100";
+        const LS_KEY_RECORDS = "chword_records_v100";
 
         let unitList = []; 
         let allWordData = []; 
@@ -1709,7 +1709,7 @@
             placedWordsInfo = JSON.parse(JSON.stringify(saved.placedWordsInfo));
             foundWords = [...saved.foundWords];
             perfectWords = [...saved.perfectWords];
-            quizStatus = JSON.parse(JSON.stringify(saved.quizStatus));
+            quizStatus = JSON.parse(JSON.stringify(quizStatus));
             score = saved.score;
             timeElapsed = saved.timeElapsed;
             isEndGameTriggered = saved.isEndGameTriggered;
